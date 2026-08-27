@@ -184,7 +184,8 @@ export const projectApi = {
   list: () => request<{ projects: Project[] }>("/projects"),
   create: (body: { name: string; description?: string }) =>
     request<{ project: Project }>("/projects", { method: "POST", body: JSON.stringify(body) }),
-  get: (id: string) => request<ProjectDetail>(`/projects/${id}`),
+  get: (id: string) =>
+    request<{ project: ProjectDetail }>(`/projects/${id}`).then((d) => d.project),
   update: (id: string, body: { name?: string; description?: string; status?: string }) =>
     request<{ project: Project }>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   addMember: (id: string, body: { user_id: string; role?: string }) =>
@@ -207,7 +208,9 @@ export const projectApi = {
 }
 
 export async function fetchBlob(path: string): Promise<Blob> {
-  const res = await fetch(`/api${path}`, {
+  // 后端返回的 preview.url / download_url 已含 /api 前缀,避免重复拼接
+  const full = path.startsWith("/api") ? path : `/api${path}`
+  const res = await fetch(full, {
     headers: { Authorization: `Bearer ${getToken()}` },
     credentials: "same-origin",
   })
@@ -224,4 +227,7 @@ export async function fetchBlob(path: string): Promise<Blob> {
   }
   return res.blob()
 }
+
+
+
 

@@ -123,8 +123,17 @@ export interface Task {
   updated_at: string
 }
 
+// 后端 GET /projects/:id 返回 {project: ProjectView},ProjectView 为平铺结构:
+// 项目字段 + owner + members + milestones + tasks(见后端 internal/project/service.go)
 export interface ProjectDetail {
-  project: Project
+  id: string
+  name: string
+  description: string
+  status: ProjectStatus
+  owner: Author
+  owner_id?: string
+  created_at: string
+  updated_at?: string
   members: ProjectMember[]
   milestones: Milestone[]
   tasks: Task[]
@@ -146,3 +155,4 @@ export interface SpaceResponse {
   space: { id: string; name: string }
   folders: Folder[]
 }
+

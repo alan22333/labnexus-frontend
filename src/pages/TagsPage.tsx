@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Loader2, Plus, RefreshCw, Tag as TagIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -30,6 +30,7 @@ export function TagsPage() {
   const [contentTag, setContentTag] = useState<Tag | null>(null)
   const [contents, setContents] = useState<{ documents: Document[]; resources: Resource[] } | null>(null)
   const [contentLoading, setContentLoading] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -48,10 +49,15 @@ export function TagsPage() {
   }, [load])
 
   async function create() {
-    if (!name.trim()) return
+    // 中文输入法合成时 state 可能尚未同步,以输入框当前 DOM 值兜底
+    const current = name.trim() || nameInputRef.current?.value.trim() || ""
+    if (!current) {
+      toast.error("请输入标签名称")
+      return
+    }
     setCreating(true)
     try {
-      await tagApi.create({ name: name.trim(), color })
+      await tagApi.create({ name: current, color })
       toast.success("标签已创建")
       setName("")
       await load()
@@ -91,22 +97,26 @@ export function TagsPage() {
       </div>
 
       {/* 创建标签 */}
-      <Card className="mb-5 p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="tag-name">新标签名</Label>
+      <Card className="mb-5 p-4 sm:p-5">
+        <h2 className="mb-4 text-sm font-semibold">创建新标签</h2>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="w-full space-y-2 sm:max-w-xs">
+            <Label htmlFor="tag-name" className="text-sm font-medium">标签名称</Label>
             <Input
               id="tag-name"
+              ref={nameInputRef}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void create()}
-              placeholder="如:组会纪要 / 论文 / 实验数据"
-              className="w-56"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) void create()
+              }}
+              placeholder="输入中文标签名,如:组会纪要"
+              className="h-10 w-full"
               maxLength={50}
             />
           </div>
           <div className="space-y-2">
-            <Label>颜色</Label>
+            <Label className="text-sm font-medium">颜色</Label>
             <div className="flex items-center gap-1.5">
               {COLORS.map((c) => (
                 <button
@@ -123,7 +133,7 @@ export function TagsPage() {
               ))}
             </div>
           </div>
-          <Button onClick={create} disabled={creating || !name.trim()}>
+          <Button onClick={create} disabled={creating} className="h-10">
             {creating ? <Loader2 className="animate-spin" /> : <Plus />}
             创建标签
           </Button>
@@ -220,3 +230,6 @@ export function TagsPage() {
     </div>
   )
 }
+
+
+

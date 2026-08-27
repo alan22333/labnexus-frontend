@@ -106,7 +106,9 @@ export function ProjectDetailPage() {
     )
   }
 
-  const { project, members, milestones, tasks } = detail
+  // 后端详情返回平铺的 ProjectView(含 owner/members/milestones/tasks)
+  const { members, milestones, tasks } = detail
+  const project = detail
   const isOwner = user != null && project.owner?.id === user.id
 
   async function addMember() {
@@ -499,4 +501,5 @@ function TaskCard({
     </Card>
   )
 }
+
 

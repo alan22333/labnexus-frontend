@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Download, ExternalLink, FileText, Eye, Link2, Loader2, Pencil, Plus, RefreshCw, Trash2,
+  Download, ExternalLink, FileText, Eye, Link2, Loader2, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -131,48 +131,60 @@ export function ResourcesPage() {
           <p className="text-sm text-muted-foreground">课题组共享库 · 链接与文件统一入库</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => void load(1, false)}>
+          <Button variant="outline" size="sm" onClick={() => void load(1, false)} className="active:bg-muted">
             <RefreshCw /> 刷新
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { setCreateType("link"); setEditTarget(null); setCreateOpen(true) }}>
+          <Button size="sm" variant="outline" onClick={() => { setCreateType("link"); setEditTarget(null); setCreateOpen(true) }} className="active:bg-muted">
             <Link2 /> 新建链接
           </Button>
-          <Button size="sm" onClick={() => { setCreateType("file"); setEditTarget(null); setCreateOpen(true) }}>
+          <Button size="sm" onClick={() => { setCreateType("file"); setEditTarget(null); setCreateOpen(true) }} className="active:bg-primary/90">
             <Plus /> 上传文件
           </Button>
         </div>
       </div>
 
-      {/* 筛选栏 */}
-      <Card className="mb-5 flex flex-wrap items-center gap-3 p-3">
-        <Select value={type} onValueChange={(v) => setType(v as ResourceType | "")}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="全部类型" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">全部类型</SelectItem>
-            <SelectItem value="link">🔗 链接</SelectItem>
-            <SelectItem value="file">📎 文件</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && setQuery(keyword.trim())}
-          placeholder="按标题关键词筛选…"
-          className="h-8 w-56"
-        />
-        <Button variant="outline" size="sm" onClick={() => { setQuery(keyword.trim()) }}>
-          筛选
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => { setType(""); setKeyword(""); setQuery("") }}
-        >
-          重置
-        </Button>
-        <span className="ml-auto text-sm text-muted-foreground">共 {total} 项</span>
+      {/* 筛选栏:单行布局,按钮成组,点击带背景反馈 */}
+      <Card className="mb-5 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={type} onValueChange={(v) => setType(v as ResourceType | "")}>
+            <SelectTrigger className="w-28 active:bg-muted">
+              <SelectValue placeholder="全部类型" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">全部类型</SelectItem>
+              <SelectItem value="link">🔗 链接</SelectItem>
+              <SelectItem value="file">📎 文件</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="relative min-w-40 flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && setQuery(keyword.trim())}
+              placeholder="按标题关键词筛选…"
+              className="h-8 pl-8"
+            />
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => { setQuery(keyword.trim()) }}
+              className="bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:bg-primary/80"
+            >
+              <Search className="size-3.5" /> 筛选
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setType(""); setKeyword(""); setQuery("") }}
+              className="active:bg-muted"
+            >
+              <RotateCcw className="size-3.5" /> 重置
+            </Button>
+          </div>
+          <span className="ml-auto shrink-0 text-sm text-muted-foreground">共 {total} 项</span>
+        </div>
       </Card>
 
       {loading ? (
@@ -299,21 +311,21 @@ function ResourceCard({
         ) : (
           <>
             {r.preview?.supported && (
-              <Button variant="outline" size="sm" onClick={onPreview}>
+              <Button variant="outline" size="sm" onClick={onPreview} className="active:bg-muted">
                 <Eye /> 预览
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={onDownload}>
+            <Button variant="outline" size="sm" onClick={onDownload} className="active:bg-muted">
               <Download /> 下载
             </Button>
           </>
         )}
         {canManage && (
           <div className="ml-auto flex gap-1">
-            <Button variant="ghost" size="icon-sm" aria-label="编辑" onClick={onEdit}>
+            <Button variant="ghost" size="icon-sm" aria-label="编辑" onClick={onEdit} className="active:bg-muted">
               <Pencil />
             </Button>
-            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" aria-label="删除" onClick={onDelete}>
+            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive active:bg-muted" aria-label="删除" onClick={onDelete}>
               <Trash2 />
             </Button>
           </div>
@@ -322,3 +334,5 @@ function ResourceCard({
     </Card>
   )
 }
+
+
