@@ -1,6 +1,8 @@
 import type {
-  Comment, Document, Folder, Milestone, Pagination, Project, ProjectDetail,
-  Resource, SearchResults, SpaceResponse, Tag, Task, User, Visibility,
+  Comment, Document, FinanceBatch, FinanceBatchDetail, FinanceBatchListItem, FinanceBill, FinanceItem, FinanceLedger,
+  FinanceSubmission, FinanceTransaction, Folder, ImportPreview, Milestone, Pagination,
+  ParticipantStat, Project, ProjectDetail, Resource, SearchResults, SpaceResponse, Tag,
+  Task, User, Visibility,
 } from "./types"
 
 const TOKEN_KEY = "ln_token"
@@ -231,3 +233,52 @@ export async function fetchBlob(path: string): Promise<Blob> {
 
 
 
+
+
+// ============ 经费管理 F10(仅 admin/supervisor,金额以分传输) ============
+export const financeApi = {
+  batches: () => request<{ batches: FinanceBatchListItem[] }>("/finance/batches"),
+  createBatch: (body: { name: string; note?: string }) =>
+    request<{ batch: FinanceBatch }>("/finance/batches", { method: "POST", body: JSON.stringify(body) }),
+  getBatch: (id: string) => request<{ batch: FinanceBatchDetail }>("/finance/batches/" + id),
+  deleteBatch: (id: string) => request<void>("/finance/batches/" + id, { method: "DELETE" }),
+  completeBatch: (id: string) =>
+    request<{ batch: FinanceBatch }>("/finance/batches/" + id + "/complete", { method: "POST" }),
+  createItem: (
+    batchId: string,
+    body: {
+      name: string
+      student_no: string
+      date: string
+      payroll_amount: number
+      tax_amount: number
+      tip_amount: number
+      should_return?: number
+      note?: string
+    }
+  ) => request<{ item: FinanceItem }>("/finance/batches/" + batchId + "/items", { method: "POST", body: JSON.stringify(body) }),
+  // 下载导入模板(xlsx blob)
+  importTemplate: () => fetchBlob("/finance/import-template"),
+  importPreview: (batchId: string, file: File) => {
+    const form = new FormData()
+    form.append("file", file)
+    return request<ImportPreview>("/finance/batches/" + batchId + "/items/import-preview", { method: "POST", body: form })
+  },
+  confirmImport: (previewId: string, batchId: string) =>
+    request<{ imported_count: number; skipped_count: number }>(
+      "/finance/imports/" + previewId + "/confirm" + buildQuery({ batch_id: batchId }),
+      { method: "POST" }
+    ),
+  submit: (itemId: string, body: { amount: number; date: string; note?: string }) =>
+    request<{ submission: FinanceSubmission }>("/finance/items/" + itemId + "/submit", { method: "POST", body: JSON.stringify(body) }),
+  ledger: () => request<FinanceLedger>("/finance/ledger"),
+  addIncome: (body: { amount: number; date: string; note?: string }) =>
+    request<{ transaction: FinanceTransaction }>("/finance/ledger/income", { method: "POST", body: JSON.stringify(body) }),
+  addExpense: (body: { amount: number; date: string; note?: string }) =>
+    request<{ transaction: FinanceTransaction }>("/finance/ledger/expense", { method: "POST", body: JSON.stringify(body) }),
+  participants: () => request<{ participants: ParticipantStat[] }>("/finance/participants"),
+  participantBills: (id: string) =>
+    request<{ participant: { id: string; name: string; student_no: string; note: string; created_at: string }; bills: FinanceBill[] }>(
+      "/finance/participants/" + id + "/bills"
+    ),
+}

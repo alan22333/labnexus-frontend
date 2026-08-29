@@ -15,6 +15,7 @@ const ProjectsPage = page(() => import("@/pages/ProjectsPage"), "ProjectsPage")
 const ProjectDetailPage = page(() => import("@/pages/ProjectDetailPage"), "ProjectDetailPage")
 const TagsPage = page(() => import("@/pages/TagsPage"), "TagsPage")
 const SearchPage = page(() => import("@/pages/SearchPage"), "SearchPage")
+const FinancePage = page(() => import("@/pages/FinancePage"), "FinancePage")
 
 function PageLoader() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/finance" element={<FinancePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
