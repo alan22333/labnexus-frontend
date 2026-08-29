@@ -5,6 +5,7 @@ import {
 import { toast } from "sonner"
 
 import { BatchDetailView } from "@/components/finance/BatchDetailView"
+import { RequiredMark } from "@/components/finance/RequiredMark"
 import { ParticipantsView } from "@/components/finance/ParticipantsView"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,7 +21,7 @@ import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs"
 import { useAuth } from "@/hooks/use-auth"
-import { financeApi } from "@/lib/api"
+import { financeApi, friendlyFinanceError } from "@/lib/api"
 import { fen2yuan, today, yuan2fen } from "@/lib/format"
 import type { FinanceBatchListItem, FinanceLedger } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -30,11 +31,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   supplement: "导师补充",
   labor: "劳务发放",
   other: "其他",
-}
-
-/** 必填星标(红色) */
-function RequiredMark() {
-  return <span className="text-destructive" aria-hidden="true">*</span>
 }
 
 function StatusBadge({ status }: { status: FinanceBatchListItem["status"] }) {
@@ -233,7 +229,7 @@ function NewBatchDialog({ open, onOpenChange, onCreated }: {
       onOpenChange(false)
       await onCreated()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "创建失败")
+      setError(err instanceof Error ? friendlyFinanceError(err.message) : "创建失败")
     } finally {
       setBusy(false)
     }
@@ -345,7 +341,7 @@ function LedgerTxDialog({ open, onOpenChange, tone, title, description, onCreate
       onOpenChange(false)
       await onCreated()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失败")
+      setError(err instanceof Error ? friendlyFinanceError(err.message) : "操作失败")
     } finally {
       setBusy(false)
     }
