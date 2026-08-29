@@ -32,6 +32,11 @@ const CATEGORY_LABEL: Record<string, string> = {
   other: "其他",
 }
 
+/** 必填星标(红色) */
+function RequiredMark() {
+  return <span className="text-destructive" aria-hidden="true">*</span>
+}
+
 function StatusBadge({ status }: { status: FinanceBatchListItem["status"] }) {
   return <Badge variant={status === "active" ? "secondary" : "outline"}>{status === "active" ? "进行中" : "已完成"}</Badge>
 }
@@ -71,7 +76,7 @@ export function FinancePage() {
     return (
       <Card className="mx-auto max-w-md p-10 text-center">
         <p className="text-lg font-medium">无权访问</p>
-        <p className="mt-2 text-sm text-muted-foreground">经费管理仅经费负责人(admin)与导师(supervisor)可用</p>
+        <p className="mt-2 text-sm text-muted-foreground">经费管理仅经费负责人（admin）与导师（supervisor）可用</p>
       </Card>
     )
   }
@@ -115,7 +120,7 @@ export function FinancePage() {
           <Card className="border-primary/20 bg-gradient-to-br from-blue-50 to-sky-50 p-5 dark:from-blue-950/40 dark:to-sky-950/40">
             <div className="flex flex-wrap items-center gap-4">
               <div>
-                <p className="text-xs text-muted-foreground">资金池余额(收入 − 支出)</p>
+                <p className="text-xs text-muted-foreground">资金池余额（收入 − 支出）</p>
                 <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">¥{fen2yuan(ledger?.balance)}</p>
               </div>
               <div className="ml-auto flex flex-wrap gap-2">
@@ -134,7 +139,7 @@ export function FinancePage() {
 
           {/* 批次列表 */}
           <div className="flex items-center justify-between">
-            <h3 className="font-medium">批次({batches.length})</h3>
+            <h3 className="font-medium">批次（{batches.length}）</h3>
             {unreturnedCount > 0 && (
               <span className="text-xs text-destructive">未交合计 ¥{fen2yuan(unreturnedCount)}</span>
             )}
@@ -146,7 +151,7 @@ export function FinancePage() {
             </div>
           ) : batches.length === 0 ? (
             <Card className="p-10 text-center text-sm text-muted-foreground">
-              暂无批次,点「新建批次」开始(如 2026-08)
+              暂无批次，点「新建批次」开始（如：2026-08）
             </Card>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -183,15 +188,17 @@ export function FinancePage() {
       <LedgerTxDialog
         open={incomeOpen}
         onOpenChange={setIncomeOpen}
+        tone="income"
         title="导师补充"
-        description="向资金池补充经费(收入),记入流水"
+        description="向资金池补充经费（收入），自动记入流水"
         onCreated={load}
       />
       <LedgerTxDialog
         open={expenseOpen}
         onOpenChange={setExpenseOpen}
+        tone="expense"
         title="资金支出"
-        description="登记资金使用(如发放劳务),余额相应减少"
+        description="登记资金使用（如：发放劳务），余额相应减少"
         onCreated={load}
       />
       <LedgerDialog open={ledgerOpen} onOpenChange={setLedgerOpen} ledger={ledger} />
@@ -213,7 +220,7 @@ function NewBatchDialog({ open, onOpenChange, onCreated }: {
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
-      setError("批次名称不能为空(如 2026-08)")
+      setError("批次名称不能为空（如：2026-08）")
       return
     }
     setBusy(true)
@@ -234,24 +241,54 @@ function NewBatchDialog({ open, onOpenChange, onCreated }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setError("") }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>新建批次</DialogTitle>
-          <DialogDescription>一次「发放 → 回收」流程,名称即标识(如 2026-08)</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-3">
+      <DialogContent className="sm:max-w-md">
+        <div className="flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-md shadow-blue-500/20">
+            <Boxes className="size-5" />
+          </span>
+          <DialogHeader className="pt-1.5">
+            <DialogTitle className="text-lg">新建批次</DialogTitle>
+            <DialogDescription>一次「发放 → 回收」周转流程，名称即标识（如：2026-08）</DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <form onSubmit={submit} className="mt-1 space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="nb-name">批次名称 *</Label>
-            <Input id="nb-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="2026-08" autoFocus />
+            <Label htmlFor="nb-name" className="text-sm font-medium">
+              批次名称 <RequiredMark />
+            </Label>
+            <Input
+              id="nb-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="如：2026-08"
+              autoFocus
+              className="h-10"
+            />
+            <p className="text-xs text-muted-foreground">必填。建议用月份或用途命名，便于区分</p>
           </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="nb-note">备注</Label>
-            <Input id="nb-note" value={note} onChange={(e) => setNote(e.target.value)} />
+            <Label htmlFor="nb-note" className="text-sm font-medium">备注</Label>
+            <Input
+              id="nb-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="选填。如：暑假劳务费周转"
+              className="h-10"
+            />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
+
+          {error && (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+          )}
+
+          <DialogFooter className="gap-2 sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-            <Button type="submit" disabled={busy}>{busy ? "创建中…" : "创建"}</Button>
+            <Button type="submit" disabled={busy} className="gap-1.5">
+              {busy ? <Loader2 className="animate-spin" /> : <Plus />}
+              {busy ? "创建中…" : "创建"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -260,9 +297,10 @@ function NewBatchDialog({ open, onOpenChange, onCreated }: {
 }
 
 // ============ 导师补充 / 资金支出 ============
-function LedgerTxDialog({ open, onOpenChange, title, description, onCreated }: {
+function LedgerTxDialog({ open, onOpenChange, tone, title, description, onCreated }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  tone: "income" | "expense"
   title: string
   description: string
   onCreated: () => Promise<void>
@@ -272,6 +310,12 @@ function LedgerTxDialog({ open, onOpenChange, title, description, onCreated }: {
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+
+  const income = tone === "income"
+  const Icon = income ? ArrowUpFromLine : ArrowDownToLine
+  const iconClass = income
+    ? "from-emerald-500 to-teal-400 shadow-emerald-500/20"
+    : "from-rose-500 to-red-400 shadow-rose-500/20"
 
   function reset() {
     setAmount("")
@@ -290,7 +334,7 @@ function LedgerTxDialog({ open, onOpenChange, title, description, onCreated }: {
     setBusy(true)
     setError("")
     try {
-      if (title.includes("补充")) {
+      if (income) {
         await financeApi.addIncome({ amount: fen, date, note: note.trim() })
         toast.success("已入账资金池")
       } else {
@@ -309,28 +353,72 @@ function LedgerTxDialog({ open, onOpenChange, title, description, onCreated }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset() }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-3">
+      <DialogContent className="sm:max-w-md">
+        <div className="flex items-start gap-3">
+          <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", iconClass)}>
+            <Icon className="size-5" />
+          </span>
+          <DialogHeader className="pt-1.5">
+            <DialogTitle className="text-lg">{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <form onSubmit={submit} className="mt-1 space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="lt-amount">金额(元)*</Label>
-            <Input id="lt-amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" inputMode="decimal" autoFocus />
+            <Label htmlFor="lt-amount" className="text-sm font-medium">
+              金额（元） <RequiredMark />
+            </Label>
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">¥</span>
+              <Input
+                id="lt-amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="如：5000"
+                inputMode="decimal"
+                autoFocus
+                className="h-10 pl-7"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">必填。请输入大于 0 的金额</p>
           </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="lt-date">日期 *</Label>
-            <Input id="lt-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Label htmlFor="lt-date" className="text-sm font-medium">
+              日期 <RequiredMark />
+            </Label>
+            <Input
+              id="lt-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-10"
+            />
+            <p className="text-xs text-muted-foreground">必填。默认今天</p>
           </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="lt-note">备注</Label>
-            <Input id="lt-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="用途说明" />
+            <Label htmlFor="lt-note" className="text-sm font-medium">备注</Label>
+            <Input
+              id="lt-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="选填。如：7 月劳务费"
+              className="h-10"
+            />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
+
+          {error && (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+          )}
+
+          <DialogFooter className="gap-2 sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-            <Button type="submit" disabled={busy}>{busy ? "提交中…" : "确认"}</Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? <Loader2 className="animate-spin" /> : null}
+              {busy ? "提交中…" : "确认"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
