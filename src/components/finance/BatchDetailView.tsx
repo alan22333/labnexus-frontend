@@ -156,8 +156,9 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
   if (!detail) return null
 
   const active = detail.status === "active"
-  const unreturned = detail.items.filter((i) => i.unreturned > 0)
-  const s = detail.summary
+  const items = detail.items ?? []
+  const unreturned = items.filter((i) => i.unreturned > 0)
+  const s = detail.summary ?? { item_count: 0, total_payroll: 0, total_should_return: 0, total_returned: 0, total_unreturned: 0 }
 
   return (
     <div className="space-y-4">
@@ -220,7 +221,7 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
 
       <Card className="p-0">
         <div className="flex items-center justify-between px-4 pt-4">
-          <h4 className="font-medium">明细({detail.items.length})</h4>
+          <h4 className="font-medium">明细({items.length})</h4>
           {active && unreturned.length > 0 && (
             <span className="text-xs text-muted-foreground">点击「收款」登记上交,资金池自动入账</span>
           )}
@@ -244,14 +245,14 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
               </tr>
             </thead>
             <tbody>
-              {detail.items.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="px-4 py-10 text-center text-muted-foreground">
                     暂无明细,点「手动加明细」或「导入 Excel」添加
                   </td>
                 </tr>
               ) : (
-                detail.items.map((i) => (
+                items.map((i) => (
                   <tr key={i.id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-2 font-medium">{i.participant.name}</td>
                     <td className="px-3 py-2 tabular-nums text-muted-foreground">{i.participant.student_no}</td>
