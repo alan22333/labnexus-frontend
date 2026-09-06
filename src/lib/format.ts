@@ -83,3 +83,20 @@ export function fmtDate(d?: string | null): string {
   if (!d) return ""
   return String(d).slice(0, 10)
 }
+
+/** 是否已过期(due_date 早于今天,字典序比较前 10 位) */
+export function isPastDue(d?: string | null): boolean {
+  const s = fmtDate(d)
+  if (!s) return false
+  return s < today()
+}
+
+/** 已过期天数(due_date 早于今天返回正数,否则 0) */
+export function overdueDays(d?: string | null): number {
+  const s = fmtDate(d)
+  if (!s || !isPastDue(s)) return 0
+  const due = new Date(s + "T00:00:00")
+  const now = new Date(today() + "T00:00:00")
+  return Math.max(1, Math.round((now.getTime() - due.getTime()) / 86400000))
+}
+

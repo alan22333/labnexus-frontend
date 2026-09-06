@@ -86,6 +86,7 @@ export interface Project {
   status: ProjectStatus
   owner: Author
   owner_id?: string
+  stats?: TaskStats
   created_at: string
 }
 
@@ -108,12 +109,33 @@ export interface Milestone {
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done"
 export type TaskPriority = "high" | "medium" | "low"
 
+export interface TaskType {
+  id: string
+  name: string
+  color: string
+  sort: number
+  builtin: boolean
+  active: boolean
+  created_at?: string
+}
+
+export interface TaskStats {
+  total: number
+  todo: number
+  in_progress: number
+  blocked: number
+  done: number
+  overdue: number
+}
+
 export interface Task {
   id: string
   title: string
   description: string
   status: TaskStatus
   priority: TaskPriority
+  type_id?: string | null
+  type?: TaskType | null
   due_date: string | null
   milestone_id: string | null
   assignee: Author | null
@@ -124,7 +146,7 @@ export interface Task {
 }
 
 // 后端 GET /projects/:id 返回 {project: ProjectView},ProjectView 为平铺结构:
-// 项目字段 + owner + members + milestones + tasks(见后端 internal/project/service.go)
+// 项目字段 + owner + members + milestones + tasks + stats(见后端 internal/project/service.go)
 export interface ProjectDetail {
   id: string
   name: string
@@ -137,6 +159,7 @@ export interface ProjectDetail {
   members: ProjectMember[]
   milestones: Milestone[]
   tasks: Task[]
+  stats?: TaskStats
 }
 
 export interface Pagination {

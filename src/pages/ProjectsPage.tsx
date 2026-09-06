@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { projectApi } from "@/lib/api"
 import { timeAgo } from "@/lib/format"
@@ -115,6 +116,17 @@ export function ProjectsPage() {
                   <CardDescription className="mt-1 line-clamp-2 min-h-8">
                     {p.description || "暂无描述"}
                   </CardDescription>
+                  {p.stats && p.stats.total > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>进度 {p.stats.done}/{p.stats.total}</span>
+                        {p.stats.overdue > 0 && (
+                          <span className="font-medium text-destructive">⚠ 逾期 {p.stats.overdue}</span>
+                        )}
+                      </div>
+                      <Progress value={(p.stats.done / p.stats.total) * 100} />
+                    </div>
+                  )}
                   <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                     <Avatar name={p.owner?.display_name ?? "?"} id={p.owner?.id} className="size-5" />
                     <span>{p.owner?.display_name}</span>

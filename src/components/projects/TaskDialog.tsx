@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { projectApi } from "@/lib/api"
-import type { Milestone, ProjectMember, Task, TaskPriority } from "@/lib/types"
+import type { Milestone, ProjectMember, Task, TaskPriority, TaskType } from "@/lib/types"
 
 interface Props {
   open: boolean
@@ -29,10 +29,12 @@ interface Props {
 export function TaskDialog({ open, onOpenChange, projectId, members, milestones, task, onSaved }: Props) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+  const [typeId, setTypeId] = useState("")
   const [assigneeId, setAssigneeId] = useState("")
   const [priority, setPriority] = useState<TaskPriority>("medium")
   const [dueDate, setDueDate] = useState("")
   const [milestoneId, setMilestoneId] = useState("")
+  const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
 
@@ -40,11 +42,16 @@ export function TaskDialog({ open, onOpenChange, projectId, members, milestones,
     if (!open) return
     setTitle(task?.title ?? "")
     setDescription(task?.description ?? "")
+    setTypeId(task?.type_id ?? "")
     setAssigneeId(task?.assignee_id ?? "")
     setPriority(task?.priority ?? "medium")
     setDueDate(task?.due_date ?? "")
     setMilestoneId(task?.milestone_id ?? "")
     setError("")
+    // 拉取任务类型字典(未设置过时静默失败,仅类型下拉不可用)
+    projectApi.listTaskTypes()
+      .then((d) => setTaskTypes(d.task_types ?? []))
+      .catch(() => setTaskTypes([]))
   }, [open, task])
 
   async function save() {
@@ -57,6 +64,8 @@ export function TaskDialog({ open, onOpenChange, projectId, members, milestones,
     const payload = {
       title: title.trim(),
       description,
+      // 空串 = 未分类/清除(后端 PATCH 以空串清除已设类型)
+      type_id: typeId,
       assignee_id: assigneeId || undefined,
       priority,
       due_date: dueDate || null,
@@ -99,6 +108,20 @@ export function TaskDialog({ open, onOpenChange, projectId, members, milestones,
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>任务类型</Label>
+              <Select value={typeId} onValueChange={setTypeId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="未分类" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">未分类</SelectItem>
+                  {taskTypes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>负责人</Label>
               <Select value={assigneeId} onValueChange={setAssigneeId}>

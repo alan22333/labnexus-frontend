@@ -2,7 +2,7 @@ import type {
   Comment, Document, FinanceBatch, FinanceBatchDetail, FinanceBatchListItem, FinanceBill, FinanceItem, FinanceLedger,
   FinanceSubmission, FinanceTransaction, Folder, ImportPreview, Milestone, Pagination,
   ParticipantStat, Project, ProjectDetail, Resource, SearchResults, SpaceResponse, Tag,
-  Task, User, Visibility,
+  Task, TaskType, User, Visibility,
 } from "./types"
 
 const TOKEN_KEY = "ln_token"
@@ -194,6 +194,9 @@ export const projectApi = {
     request<{ member: { user: User } }>(`/projects/${id}/members`, { method: "POST", body: JSON.stringify(body) }),
   removeMember: (projectId: string, userId: string) =>
     request<void>(`/projects/${projectId}/members/${userId}`, { method: "DELETE" }),
+  candidates: (projectId: string) =>
+    request<{ users: User[] }>(`/projects/${projectId}/candidates`),
+  listTaskTypes: () => request<{ task_types: TaskType[] }>("/task-types"),
   addMilestone: (projectId: string, body: { name: string; due_date?: string | null }) =>
     request<{ milestone: Milestone }>(`/projects/${projectId}/milestones`, { method: "POST", body: JSON.stringify(body) }),
   updateMilestone: (id: string, body: { name?: string; due_date?: string | null; completed_at?: string | null }) =>

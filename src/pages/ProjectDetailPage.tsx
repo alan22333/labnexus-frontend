@@ -19,11 +19,15 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
 import { useAuth } from "@/hooks/use-auth"
 import { projectApi } from "@/lib/api"
-import { formatDate } from "@/lib/format"
-import type { Milestone, ProjectDetail, Task, TaskStatus } from "@/lib/types"
+import { formatDate, isPastDue, overdueDays } from "@/lib/format"
+import type { Milestone, ProjectDetail, Task, TaskStatus, User } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const COLUMNS: { status: TaskStatus; label: string; dot: string; empty: string }[] = [
@@ -64,6 +68,9 @@ export function ProjectDetailPage() {
   const [editProjectOpen, setEditProjectOpen] = useState(false)
   const [taskDialog, setTaskDialog] = useState<{ open: boolean; task: Task | null }>({ open: false, task: null })
   const [deleteTaskTarget, setDeleteTaskTarget] = useState<Task | null>(null)
+  const [candidates, setCandidates] = useState<User[]>([])
+  const [candidateId, setCandidateId] = useState("")
+  const [memberLoading, setMemberLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -80,6 +87,17 @@ export function ProjectDetailPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // 打开加成员弹窗时拉取候选(仅 owner)
+  useEffect(() => {
+    if (!memberOpen || !detail) return
+    setMemberLoading(true)
+    setCandidateId("")
+    projectApi.candidates(detail.id)
+      .then((d) => setCandidates(d.users ?? []))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "候选加载失败"))
+      .finally(() => setMemberLoading(false))
+  }, [memberOpen, detail])
 
   if (loading) {
     return (
@@ -112,11 +130,12 @@ export function ProjectDetailPage() {
   const isOwner = user != null && project.owner?.id === user.id
 
   async function addMember() {
-    const input = document.getElementById("member-user-id") as HTMLInputElement | null
-    const uid = input?.value.trim()
-    if (!uid) return
+    if (!candidateId) {
+      toast.error("请选择要添加的用户")
+      return
+    }
     try {
-      await projectApi.addMember(project.id, { user_id: uid })
+      await projectApi.addMember(project.id, { user_id: candidateId })
       toast.success("成员已添加")
       setMemberOpen(false)
       await load()
@@ -238,6 +257,22 @@ export function ProjectDetailPage() {
         </div>
       </div>
 
+      {/* 进度统计 */}
+      {project.stats && (
+        <Card className="mb-5 p-4">
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="font-medium">进度</span>
+            <span className="text-muted-foreground">已完成 {project.stats.done} / {project.stats.total} 项任务</span>
+            {project.stats.overdue > 0 && (
+              <span className="inline-flex items-center gap-1 font-medium text-destructive">
+                ⚠ 逾期 {project.stats.overdue} 项
+              </span>
+            )}
+          </div>
+          <Progress value={project.stats.total ? (project.stats.done / project.stats.total) * 100 : 0} />
+        </Card>
+      )}
+
       {/* 成员与里程碑 */}
       <Card className="mb-5 p-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -262,9 +297,11 @@ export function ProjectDetailPage() {
                 </span>
               ))}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              添加成员需要对方用户 ID(可在其「个人资料」中查看)
-            </p>
+            {isOwner && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                点击「加成员」从候选列表选择未入组用户
+              </p>
+            )}
           </div>
           <div>
             <h3 className="mb-2 text-sm font-semibold">里程碑 ({milestones.length})</h3>
@@ -281,8 +318,15 @@ export function ProjectDetailPage() {
                     )}
                     <span className={cn(m.completed_at && "text-muted-foreground line-through")}>{m.name}</span>
                     {m.due_date && (
-                      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <CalendarDays className="size-3" /> {formatDate(m.due_date)}
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 text-xs",
+                          !m.completed_at && isPastDue(m.due_date) ? "font-medium text-destructive" : "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarDays className="size-3" />
+                        {formatDate(m.due_date)}
+                        {!m.completed_at && isPastDue(m.due_date) && " · 已逾期"}
                       </span>
                     )}
                     {isOwner && (
@@ -340,15 +384,36 @@ export function ProjectDetailPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>添加成员</DialogTitle>
-            <DialogDescription>输入对方用户 ID,将其加入本项目</DialogDescription>
+            <DialogDescription>从课题组用户中选择,将其加入本项目</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-1">
-            <Label htmlFor="member-user-id">用户 ID</Label>
-            <Input id="member-user-id" placeholder="用户 ID(UUID)" />
+            <Label>用户</Label>
+            {memberLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Skeleton className="h-9 w-full rounded-md" />
+              </div>
+            ) : candidates.length === 0 ? (
+              <p className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                暂无未入组用户
+              </p>
+            ) : (
+              <Select value={candidateId} onValueChange={setCandidateId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="选择用户" />
+                </SelectTrigger>
+                <SelectContent>
+                  {candidates.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.display_name}(@{u.username})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMemberOpen(false)}>取消</Button>
-            <Button onClick={() => void addMember()}>添加</Button>
+            <Button onClick={() => void addMember()} disabled={!candidateId || memberLoading}>添加</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -442,20 +507,31 @@ function TaskCard({
 }) {
   const canEdit = isOwner || isAssignee
   const btns = TRANSITIONS[task.status] ?? []
+  const overdue = task.status !== "done" && isPastDue(task.due_date)
   return (
-    <Card className="p-3">
+    <Card className={cn("p-3", overdue && "border-destructive/70 ring-1 ring-destructive/30")}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm leading-snug font-medium">{task.title}</p>
+          <p className={cn("line-clamp-2 text-sm leading-snug font-medium", overdue && "text-destructive")}>{task.title}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+            {task.type && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-medium"
+                style={{ background: `${task.type.color}1a`, color: task.type.color }}
+              >
+                <span className="size-1.5 rounded-full" style={{ background: task.type.color }} />
+                {task.type.name}
+              </span>
+            )}
             <span className={cn("rounded-full px-1.5 py-0.5 font-medium", STATUS_BADGE[task.status])}>
               {STATUS_BADGE[task.status].includes("slate") ? "待办" : task.status === "in_progress" ? "进行中" : task.status === "blocked" ? "受阻" : "完成"}
             </span>
             {task.priority === "high" && <span className="text-red-500">高优先级</span>}
             {task.priority === "low" && <span className="text-muted-foreground">低优先级</span>}
             {task.due_date && (
-              <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+              <span className={cn("inline-flex items-center gap-0.5", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
                 <CalendarDays className="size-3" /> {formatDate(task.due_date)}
+                {overdue && ` · 逾期 ${overdueDays(task.due_date)} 天`}
               </span>
             )}
           </div>
