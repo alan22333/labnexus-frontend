@@ -53,11 +53,12 @@ docker exec labnexus-postgres psql -U labnexus -d labnexus -c \
 | `/` | 信息流 | 公开帖时间线(最新/热门)、点赞、评论、发帖/写笔记 |
 | `/space` | 我的空间 | 目录树(建/改/删)、文档列表、新建/编辑/删除(可见性切换) |
 | `/resources` | 资源库 | 链接/文件、预览/下载(带鉴权 blob)、标签、筛选、分页 |
-| `/projects` | 项目 | 项目列表、创建 |
-| `/projects/:id` | 项目详情 | 看板(4 列状态机)、成员、里程碑、任务创建/流转 |
+| `/projects` | 项目 | 项目列表(进度条/逾期提示)、创建 |
+| `/projects/:id` | 项目详情 | 看板(4 列状态机)、成员(候选下拉添加)、里程碑、任务创建/流转/类型/逾期高亮、进度统计 |
 | `/tags` | 标签 | 创建标签(带颜色)、标签内容页(文档+资源) |
 | `/search` | 搜索 | 跨文档/资源/任务聚合结果 |
 | `/finance` | 经费(仅 admin/导师) | 资金池、批次/明细、Excel 导入、收款、参与同学(参考实现见后端 labnexus/web 的 Finance 模块) |
+| `/admin` ⚠️待开发 | **管理后台**(仅 admin) | **后端已就绪(契约 §管理端 + specs/admin-console.md),前端待实现**:成员管理(列表/搜索/改角色)、邀请码管理(生成/列表/撤销)、任务类型管理(CRUD/停用/删除)。顶栏仅 admin 显示入口;单页三 tab(成员/邀请码/任务类型) |
 
 ## 目录结构
 
@@ -89,6 +90,7 @@ labnexus-frontend/
 - 阶段 1 的纯 HTML/JS 前端位于后端仓库 `labnexus/web/`,作为**参考实现**(交互/字段命名/接口调用)
 - 开发前先读后端仓库的 `AGENTS.md` 与 `docs/api-contract.md`
 - 每完成一个功能,按后端契约联调,并通过后端的手工验收清单(`docs/manual-acceptance.md`)
+- **管理后台(/admin)**:后端已实现(见后端 `docs/specs/admin-console.md` §4 契约与 §8 前端形态),前端按契约开发即可;顶栏入口复用 `/finance` 的角色过滤模式(`user.role === "admin"`)
 - 主题色主蓝 `#3b82f6`,字体系统中文栈,均已在 `src/index.css` 配置
 
 ## License
