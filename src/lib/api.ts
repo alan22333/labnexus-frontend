@@ -1,6 +1,8 @@
 import type {
-  Comment, Document, Folder, Milestone, Pagination, Project, ProjectDetail,
-  Resource, SearchResults, SpaceResponse, Tag, Task, User, Visibility,
+  Comment, Document, FinanceBatch, FinanceBatchDetail, FinanceBatchListItem, FinanceBill, FinanceItem, FinanceLedger,
+  FinanceSubmission, FinanceTransaction, Folder, ImportPreview, Milestone, Pagination,
+  ParticipantStat, Project, ProjectDetail, Resource, SearchResults, SpaceResponse, Tag,
+  Task, User, Visibility,
 } from "./types"
 
 const TOKEN_KEY = "ln_token"
@@ -231,3 +233,77 @@ export async function fetchBlob(path: string): Promise<Blob> {
 
 
 
+
+
+// ============ 经费管理 F10(仅 admin/supervisor,金额以分传输) ============
+export const financeApi = {
+  batches: () => request<{ batches: FinanceBatchListItem[] }>("/finance/batches"),
+  createBatch: (body: { name: string; note?: string }) =>
+    request<{ batch: FinanceBatch }>("/finance/batches", { method: "POST", body: JSON.stringify(body) }),
+  getBatch: (id: string) => request<{ batch: FinanceBatchDetail }>("/finance/batches/" + id),
+  deleteBatch: (id: string) => request<void>("/finance/batches/" + id, { method: "DELETE" }),
+  completeBatch: (id: string) =>
+    request<{ batch: FinanceBatch }>("/finance/batches/" + id + "/complete", { method: "POST" }),
+  createItem: (
+    batchId: string,
+    body: {
+      name: string
+      student_no: string
+      date: string
+      payroll_amount: number
+      tax_amount: number
+      tip_amount: number
+      should_return?: number
+      note?: string
+    }
+  ) => request<{ item: FinanceItem }>("/finance/batches/" + batchId + "/items", { method: "POST", body: JSON.stringify(body) }),
+  // 下载导入模板(xlsx blob)
+  importTemplate: () => fetchBlob("/finance/import-template"),
+  importPreview: (batchId: string, file: File) => {
+    const form = new FormData()
+    form.append("file", file)
+    return request<ImportPreview>("/finance/batches/" + batchId + "/items/import-preview", { method: "POST", body: form })
+  },
+  confirmImport: (previewId: string, batchId: string) =>
+    request<{ imported_count: number; skipped_count: number }>(
+      "/finance/imports/" + previewId + "/confirm" + buildQuery({ batch_id: batchId }),
+      { method: "POST" }
+    ),
+  submit: (itemId: string, body: { amount: number; date: string; note?: string }) =>
+    request<{ submission: FinanceSubmission }>("/finance/items/" + itemId + "/submit", { method: "POST", body: JSON.stringify(body) }),
+  ledger: () => request<FinanceLedger>("/finance/ledger"),
+  addIncome: (body: { amount: number; date: string; note?: string }) =>
+    request<{ transaction: FinanceTransaction }>("/finance/ledger/income", { method: "POST", body: JSON.stringify(body) }),
+  addExpense: (body: { amount: number; date: string; note?: string }) =>
+    request<{ transaction: FinanceTransaction }>("/finance/ledger/expense", { method: "POST", body: JSON.stringify(body) }),
+  participants: () => request<{ participants: ParticipantStat[] }>("/finance/participants"),
+  participantBills: (id: string) =>
+    request<{ participant: { id: string; name: string; student_no: string; note: string; created_at: string }; bills: FinanceBill[] }>(
+      "/finance/participants/" + id + "/bills"
+    ),
+}
+
+
+// ============ 经费管理错误文案中文化 ============
+const FINANCE_ERROR_MAP: Record<string, string> = {
+  "batch not found": "批次不存在或已被删除",
+  "item not found": "明细记录不存在，可能已被删除",
+  "batch name is empty": "批次名称不能为空",
+  "batch is done": "批次已完成，不能再操作",
+  "batch has unreturned items, cannot complete": "该批次还有未交清的款项，无法标记完成",
+  "cannot delete done batch": "已完成批次不可删除",
+  "name, student_no, date and payroll_amount are required": "姓名、学号、日期、应发为必填项",
+  "invalid date, expected YYYY-MM-DD": "日期格式不正确，请使用 YYYY-MM-DD 或 YYYY/MM/DD",
+  "amount must be positive": "金额必须大于 0",
+  "submit amount exceeds unreturned balance": "上交金额超过未交余额",
+  "participant not found": "参与同学不存在",
+  "import preview not found or expired": "导入预览已过期，请重新上传文件",
+  "invalid excel file": "Excel 文件无法解析，请使用 .xlsx 格式",
+  "excel rows exceed limit": "Excel 行数超过上限",
+  "account not found": "资金账户不存在",
+}
+
+/** 后端英文错误 → 中文提示（未匹配时原样返回） */
+export function friendlyFinanceError(message: string): string {
+  return FINANCE_ERROR_MAP[message] ?? message
+}

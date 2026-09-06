@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Link, NavLink, useNavigate } from "react-router-dom"
 import {
   FileText, FlaskConical, FolderKanban, LayoutGrid, LogOut, Search, Tag as TagIcon,
-  UserRound, ClipboardList, BookOpen, Link2, Loader2,
+  UserRound, Wallet, ClipboardList, BookOpen, Link2, Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -29,6 +29,7 @@ const NAV = [
   { to: "/resources", label: "资源库", icon: FolderKanban, end: false },
   { to: "/projects", label: "项目", icon: ClipboardList, end: false },
   { to: "/tags", label: "标签", icon: TagIcon, end: false },
+  { to: "/finance", label: "经费", icon: Wallet, end: false, finOnly: true },
 ]
 
 function SearchBox() {
@@ -248,6 +249,8 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
 export function TopBar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const canFinance = user?.role === "admin" || user?.role === "supervisor"
+  const navs = NAV.filter((n) => !("finOnly" in n) || canFinance)
   const [profileOpen, setProfileOpen] = useState(false)
 
   async function handleLogout() {
@@ -267,7 +270,7 @@ export function TopBar() {
         </Link>
 
         <nav className="ml-2 hidden items-center gap-1 md:flex">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {navs.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -317,7 +320,7 @@ export function TopBar() {
 
       {/* 移动端横向导航 */}
       <nav className="flex items-center gap-1 overflow-x-auto px-4 pb-2 md:hidden">
-        {NAV.map(({ to, label, end }) => (
+        {navs.map(({ to, label, end }) => (
           <NavLink
             key={to}
             to={to}

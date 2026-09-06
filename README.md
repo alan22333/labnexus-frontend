@@ -57,6 +57,7 @@ docker exec labnexus-postgres psql -U labnexus -d labnexus -c \
 | `/projects/:id` | 项目详情 | 看板(4 列状态机)、成员、里程碑、任务创建/流转 |
 | `/tags` | 标签 | 创建标签(带颜色)、标签内容页(文档+资源) |
 | `/search` | 搜索 | 跨文档/资源/任务聚合结果 |
+| `/finance` | 经费(仅 admin/导师) | 资金池、批次/明细、Excel 导入、收款、参与同学(参考实现见后端 labnexus/web 的 Finance 模块) |
 
 ## 目录结构
 
