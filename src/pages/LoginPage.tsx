@@ -1,5 +1,5 @@
-import { useState, type FormEvent, type ReactNode } from "react"
-import { useNavigate } from "react-router-dom"
+import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowRight, BookOpen, ClipboardList, FlaskConical, Loader2, Lock, MessageSquareText, Users,
 } from "lucide-react"
@@ -24,6 +24,7 @@ type Mode = "login" | "register"
 export function LoginPage() {
   const { login, register } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [mode, setMode] = useState<Mode>("login")
   const [busy, setBusy] = useState(false)
@@ -37,6 +38,12 @@ export function LoginPage() {
   const [regUsername, setRegUsername] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [regPassword, setRegPassword] = useState("")
+
+  useEffect(() => {
+    const code = searchParams.get("code") ?? ""
+    if (code) setInviteCode(code)
+    if (code || searchParams.get("mode") === "register") setMode("register")
+  }, [searchParams])
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault()

@@ -37,7 +37,10 @@ npm run lint       # oxlint
 
 ### 登录与邀请码
 
-注册需要邀请码。后端管理端未实现时,用 SQL 插入:
+注册需要邀请码。admin 登录后进入 `/admin` 的「邀请码」tab 生成,并可直接复制注册链接
+(`/register?code=XXX`);打开该链接会自动切到注册模式并预填邀请码。
+
+> 若还没有 admin 账号或临时需要,可用 SQL 兜底:
 
 ```bash
 docker exec labnexus-postgres psql -U labnexus -d labnexus -c \
@@ -50,6 +53,7 @@ docker exec labnexus-postgres psql -U labnexus -d labnexus -c \
 | 路由 | 页面 | 功能 |
 |---|---|---|
 | `/login` | 登录/注册 | 邀请码注册(注册即登录)、JWT 自动刷新 |
+| `/register` | 注册 | 等价 `/login`;支持 `?code=XXX` 预填邀请码并自动切注册模式 |
 | `/` | 信息流 | 公开帖时间线(最新/热门)、点赞、评论、发帖/写笔记 |
 | `/space` | 我的空间 | 目录树(建/改/删)、文档列表、新建/编辑/删除(可见性切换) |
 | `/resources` | 资源库 | 链接/文件、预览/下载(带鉴权 blob)、标签、筛选、分页 |
@@ -58,7 +62,7 @@ docker exec labnexus-postgres psql -U labnexus -d labnexus -c \
 | `/tags` | 标签 | 创建标签(带颜色)、标签内容页(文档+资源) |
 | `/search` | 搜索 | 跨文档/资源/任务聚合结果 |
 | `/finance` | 经费(仅 admin/导师) | 资金池、批次/明细、Excel 导入、收款、参与同学(参考实现见后端 labnexus/web 的 Finance 模块) |
-| `/admin` ⚠️待开发 | **管理后台**(仅 admin) | **后端已就绪(契约 §管理端 + specs/admin-console.md),前端待实现**:成员管理(列表/搜索/改角色)、邀请码管理(生成/列表/撤销)、任务类型管理(CRUD/停用/删除)。顶栏仅 admin 显示入口;单页三 tab(成员/邀请码/任务类型) |
+| `/admin` | **管理后台**(仅 admin) | 单页三 tab:成员管理(列表/搜索/改角色,防锁死提示)、邀请码管理(生成/列表/撤销/复制注册链接)、任务类型管理(CRUD/停用/删除/排序)。顶栏仅 admin 显示入口 |
 
 ## 目录结构
 
@@ -82,7 +86,7 @@ labnexus-frontend/
 │   │   ├── documents/      # 文档卡片/编辑器/评论/详情
 │   │   ├── resources/      # 资源创建对话框
 │   │   └── projects/       # 任务对话框
-│   └── pages/              # 页面(登录/信息流/空间/资源/项目/标签/搜索)
+│   └── pages/              # 页面(登录/信息流/空间/资源/项目/标签/搜索/经费/管理后台)
 ```
 
 ## 开发约定
@@ -90,7 +94,7 @@ labnexus-frontend/
 - 阶段 1 的纯 HTML/JS 前端位于后端仓库 `labnexus/web/`,作为**参考实现**(交互/字段命名/接口调用)
 - 开发前先读后端仓库的 `AGENTS.md` 与 `docs/api-contract.md`
 - 每完成一个功能,按后端契约联调,并通过后端的手工验收清单(`docs/manual-acceptance.md`)
-- **管理后台(/admin)**:后端已实现(见后端 `docs/specs/admin-console.md` §4 契约与 §8 前端形态),前端按契约开发即可;顶栏入口复用 `/finance` 的角色过滤模式(`user.role === "admin"`)
+- **管理后台(/admin)**:已实现(后端契约见 `docs/specs/admin-console.md` §4 与 §8);顶栏入口复用 `/finance` 的角色过滤模式(`user.role === "admin"`)
 - 主题色主蓝 `#3b82f6`,字体系统中文栈,均已在 `src/index.css` 配置
 
 ## License

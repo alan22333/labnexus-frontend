@@ -16,6 +16,7 @@ const ProjectDetailPage = page(() => import("@/pages/ProjectDetailPage"), "Proje
 const TagsPage = page(() => import("@/pages/TagsPage"), "TagsPage")
 const SearchPage = page(() => import("@/pages/SearchPage"), "SearchPage")
 const FinancePage = page(() => import("@/pages/FinancePage"), "FinancePage")
+const AdminPage = page(() => import("@/pages/AdminPage"), "AdminPage")
 
 function PageLoader() {
   return (
@@ -30,6 +31,7 @@ function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<LoginPage />} />
         <Route element={<AppLayout />}>
           <Route index element={<FeedPage />} />
           <Route path="/space" element={<SpacePage />} />
@@ -39,6 +41,7 @@ function App() {
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/finance" element={<FinancePage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

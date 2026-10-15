@@ -1,8 +1,8 @@
 import type {
   Comment, Document, FinanceBatch, FinanceBatchDetail, FinanceBatchListItem, FinanceBill, FinanceItem, FinanceLedger,
   FinanceSubmission, FinanceTransaction, Folder, ImportPreview, Milestone, Pagination,
-  ParticipantStat, Project, ProjectDetail, Resource, SearchResults, SpaceResponse, Tag,
-  Task, TaskType, User, Visibility,
+  Invite, ParticipantStat, Project, ProjectDetail, Resource, SearchResults, SpaceResponse, Tag,
+  Role, Task, TaskType, User, Visibility,
 } from "./types"
 
 const TOKEN_KEY = "ln_token"
@@ -237,6 +237,28 @@ export async function fetchBlob(path: string): Promise<Blob> {
 
 
 
+
+// ============ 管理后台(仅 admin) ============
+export const adminApi = {
+  users: (q?: string) => request<{ users: User[] }>(`/admin/users${buildQuery({ q })}`),
+  changeRole: (id: string, role: Role) =>
+    request<{ user: User }>(`/admin/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
+  invites: () => request<{ invites: Invite[] }>("/admin/invites"),
+  createInvite: (code?: string) =>
+    request<{ invite: Invite; url: string }>("/admin/invites", {
+      method: "POST",
+      body: JSON.stringify(code ? { code } : {}),
+    }),
+  deleteInvite: (id: string) => request<void>(`/admin/invites/${id}`, { method: "DELETE" }),
+  taskTypes: () => request<{ task_types: TaskType[] }>("/admin/task-types"),
+  createTaskType: (body: { name: string; color?: string }) =>
+    request<{ task_type: TaskType }>("/admin/task-types", { method: "POST", body: JSON.stringify(body) }),
+  updateTaskType: (
+    id: string,
+    body: { name?: string; color?: string; sort?: number; active?: boolean }
+  ) => request<{ task_type: TaskType }>(`/admin/task-types/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteTaskType: (id: string) => request<void>(`/admin/task-types/${id}`, { method: "DELETE" }),
+}
 
 // ============ 经费管理 F10(仅 admin/supervisor,金额以分传输) ============
 export const financeApi = {

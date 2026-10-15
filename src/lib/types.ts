@@ -2,6 +2,16 @@
 
 export type Role = "admin" | "supervisor" | "student"
 
+export interface Invite {
+  id: string
+  code: string
+  created_by: string
+  created_at: string
+  expires_at?: string | null
+  used_by?: string | null
+  used_at?: string | null
+}
+
 export interface User {
   id: string
   username: string

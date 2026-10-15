@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Link, NavLink, useNavigate } from "react-router-dom"
 import {
   FileText, FlaskConical, FolderKanban, LayoutGrid, LogOut, Search, Tag as TagIcon,
-  UserRound, Wallet, ClipboardList, BookOpen, Link2, Loader2,
+  UserRound, Wallet, ClipboardList, BookOpen, Link2, Loader2, Settings,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -30,6 +30,7 @@ const NAV = [
   { to: "/projects", label: "项目", icon: ClipboardList, end: false },
   { to: "/tags", label: "标签", icon: TagIcon, end: false },
   { to: "/finance", label: "经费", icon: Wallet, end: false, finOnly: true },
+  { to: "/admin", label: "管理", icon: Settings, end: false, adminOnly: true },
 ]
 
 function SearchBox() {
@@ -250,7 +251,9 @@ export function TopBar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const canFinance = user?.role === "admin" || user?.role === "supervisor"
-  const navs = NAV.filter((n) => !("finOnly" in n) || canFinance)
+  const navs = NAV.filter((n) =>
+    (!("finOnly" in n) || canFinance) && (!("adminOnly" in n) || user?.role === "admin")
+  )
   const [profileOpen, setProfileOpen] = useState(false)
 
   async function handleLogout() {
