@@ -1,9 +1,11 @@
 // 时间与大小格式化工具
 
 export function timeAgo(iso: string): string {
+  if (!iso) return ""
   const d = new Date(iso)
   const diff = Date.now() - d.getTime()
-  if (Number.isNaN(diff)) return ""
+  // 非法时间或 Go 零值时间(0001-01-01,来自未初始化的空字段)一律不展示
+  if (Number.isNaN(diff) || d.getFullYear() <= 1) return ""
   const min = Math.floor(diff / 60000)
   if (min < 1) return "刚刚"
   if (min < 60) return `${min} 分钟前`
