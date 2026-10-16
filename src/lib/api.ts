@@ -282,6 +282,18 @@ export const financeApi = {
       note?: string
     }
   ) => request<{ item: FinanceItem }>("/finance/batches/" + batchId + "/items", { method: "POST", body: JSON.stringify(body) }),
+  updateItem: (
+    itemId: string,
+    body: {
+      date?: string
+      payroll_amount?: number
+      tax_amount?: number
+      tip_amount?: number
+      should_return?: number
+      note?: string
+    }
+  ) => request<{ item: FinanceItem }>("/finance/items/" + itemId, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteItem: (itemId: string) => request<void>("/finance/items/" + itemId, { method: "DELETE" }),
   // 下载导入模板(xlsx blob)
   importTemplate: () => fetchBlob("/finance/import-template"),
   importPreview: (batchId: string, file: File) => {
@@ -296,6 +308,8 @@ export const financeApi = {
     ),
   submit: (itemId: string, body: { amount: number; date: string; note?: string }) =>
     request<{ submission: FinanceSubmission }>("/finance/items/" + itemId + "/submit", { method: "POST", body: JSON.stringify(body) }),
+  voidSubmission: (submissionId: string) =>
+    request<{ item: FinanceItem }>("/finance/submissions/" + submissionId + "/void", { method: "POST" }),
   ledger: () => request<FinanceLedger>("/finance/ledger"),
   addIncome: (body: { amount: number; date: string; note?: string }) =>
     request<{ transaction: FinanceTransaction }>("/finance/ledger/income", { method: "POST", body: JSON.stringify(body) }),
@@ -316,7 +330,6 @@ const FINANCE_ERROR_MAP: Record<string, string> = {
   "batch name is empty": "批次名称不能为空",
   "batch is done": "批次已完成，不能再操作",
   "batch has unreturned items, cannot complete": "该批次还有未交清的款项，无法标记完成",
-  "cannot delete done batch": "已完成批次不可删除",
   "name, student_no, date and payroll_amount are required": "姓名、学号、日期、应发为必填项",
   "invalid date, expected YYYY-MM-DD": "日期格式不正确，请使用 YYYY-MM-DD 或 YYYY/MM/DD",
   "amount must be positive": "金额必须大于 0",
@@ -326,6 +339,9 @@ const FINANCE_ERROR_MAP: Record<string, string> = {
   "invalid excel file": "Excel 文件无法解析，请使用 .xlsx 格式",
   "excel rows exceed limit": "Excel 行数超过上限",
   "account not found": "资金账户不存在",
+  "submission not found": "该上交记录不存在，可能已被撤销",
+  "item already has submissions; void them before editing amounts": "该明细已有上交记录，请先撤销上交再改金额",
+  "cannot delete done batch": "已完成批次不可删除（或有上交记录，请先撤销上交）",
 }
 
 /** 后端英文错误 → 中文提示（未匹配时原样返回） */

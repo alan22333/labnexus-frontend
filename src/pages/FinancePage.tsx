@@ -30,6 +30,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   turnover: "上交回笼",
   supplement: "导师补充",
   labor: "劳务发放",
+  turnover_void: "撤销上交冲正",
   other: "其他",
 }
 

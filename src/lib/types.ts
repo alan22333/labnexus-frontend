@@ -196,7 +196,7 @@ export interface SpaceResponse {
 export type FinanceBatchStatus = "active" | "done"
 export type FinanceItemStatus = "pending" | "partial" | "done"
 export type FinanceTxType = "income" | "expense"
-export type FinanceCategory = "turnover" | "supplement" | "labor" | "other"
+export type FinanceCategory = "turnover" | "supplement" | "labor" | "turnover_void" | "other"
 
 export interface FinanceBatch {
   id: string

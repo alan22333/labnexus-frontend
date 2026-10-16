@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import {
-  ArrowLeft, CheckCircle2, Download, FileSpreadsheet, HandCoins, Loader2, Plus, Trash2, UserPlus,
+  ArrowLeft, CheckCircle2, Download, FileSpreadsheet, HandCoins, History, Loader2, Pencil, Plus,
+  Trash2, Undo2, UserPlus,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,7 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { financeApi, friendlyFinanceError } from "@/lib/api"
 import { fen2yuan, fmtDate, today, yuan2fen } from "@/lib/format"
-import type { FinanceBatchDetail, FinanceItem, ImportPreview, ImportRow } from "@/lib/types"
+import type { FinanceBatchDetail, FinanceItem, FinanceSubmission, ImportPreview, ImportRow } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { RequiredMark } from "@/components/finance/RequiredMark"
 
@@ -97,6 +98,9 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
   const [loading, setLoading] = useState(true)
 
   const [addOpen, setAddOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<FinanceItem | null>(null)
+  const [deleteItemTarget, setDeleteItemTarget] = useState<FinanceItem | null>(null)
+  const [logTarget, setLogTarget] = useState<FinanceItem | null>(null)
   const [submitTarget, setSubmitTarget] = useState<FinanceItem | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [confirming, setConfirming] = useState(false)
@@ -196,6 +200,23 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
     } catch (err) {
       toast.error(friendlyFinanceError(err instanceof Error ? err.message : "删除失败"))
       setDeleteOpen(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deleteItem() {
+    if (!deleteItemTarget) return
+    setBusy(true)
+    try {
+      await financeApi.deleteItem(deleteItemTarget.id)
+      toast.success("明细已删除")
+      setDeleteItemTarget(null)
+      await load()
+      onChanged()
+    } catch (err) {
+      toast.error(friendlyFinanceError(err instanceof Error ? err.message : "删除失败"))
+      setDeleteItemTarget(null)
     } finally {
       setBusy(false)
     }
@@ -327,13 +348,28 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
                     </td>
                     <td className="max-w-[10rem] truncate px-3 py-2 text-muted-foreground" title={i.note}>{i.note || "—"}</td>
                     <td className="px-4 py-2">
-                      {active && i.unreturned > 0 ? (
-                        <Button size="sm" variant="outline" onClick={() => setSubmitTarget(i)}>
-                          <HandCoins /> 收款
-                        </Button>
-                      ) : (
-                        <span className="text-emerald-600">✓</span>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        {active && i.unreturned > 0 && (
+                          <Button size="sm" variant="outline" onClick={() => setSubmitTarget(i)}>
+                            <HandCoins /> 收款
+                          </Button>
+                        )}
+                        {i.submissions.length > 0 && (
+                          <Button size="sm" variant="ghost" title="查看上交记录" onClick={() => setLogTarget(i)}>
+                            <History /> <span className="tabular-nums">{i.submissions.length}</span>
+                          </Button>
+                        )}
+                        {active && (
+                          <Button size="sm" variant="ghost" title="编辑明细" onClick={() => setEditTarget(i)}>
+                            <Pencil />
+                          </Button>
+                        )}
+                        {active && i.returned === 0 && (
+                          <Button size="sm" variant="ghost" className="text-destructive" title="删除明细" onClick={() => setDeleteItemTarget(i)}>
+                            <Trash2 />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -343,8 +379,15 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
         </div>
       </Card>
 
-      <AddItemDialog open={addOpen} onOpenChange={setAddOpen} batchId={batchId} onCreated={load} />
+      <ItemDialog
+        open={addOpen || !!editTarget}
+        item={editTarget}
+        onOpenChange={(open) => { if (!open) { setAddOpen(false); setEditTarget(null) } }}
+        batchId={batchId}
+        onSaved={load}
+      />
       <SubmitDialog target={submitTarget} onOpenChange={(open) => !open && setSubmitTarget(null)} onSubmitted={load} />
+      <SubmissionsDialog target={logTarget} onOpenChange={(open) => !open && setLogTarget(null)} onChanged={load} active={active} />
       <ImportPreviewDialog preview={preview} onOpenChange={(open) => !open && setPreview(null)} confirming={confirming} onConfirm={confirmImport} />
 
       <AlertDialog open={completeOpen} onOpenChange={setCompleteOpen}>
@@ -364,7 +407,7 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除批次?</AlertDialogTitle>
-            <AlertDialogDescription>将删除该批次及其全部明细与上交记录，此操作不可恢复。</AlertDialogDescription>
+            <AlertDialogDescription>仅可删除进行中、且还没有任何上交记录的批次。删除后该批次及其明细不可恢复；若已收过款，请先在明细里撤销上交。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
@@ -372,17 +415,34 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!deleteItemTarget} onOpenChange={(open) => !open && setDeleteItemTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除这条明细?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteItemTarget ? deleteItemTarget.participant.name + " · 应交 ¥" + fen2yuan(deleteItemTarget.should_return) + "；删除后不可恢复。" : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={deleteItem} disabled={busy}>确认删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
 
-// ============ 手动加明细 ============
-function AddItemDialog({ open, onOpenChange, batchId, onCreated }: {
+// ============ 明细新增 / 编辑 ============
+function ItemDialog({ open, item, onOpenChange, batchId, onSaved }: {
   open: boolean
+  item: FinanceItem | null
   onOpenChange: (open: boolean) => void
   batchId: string
-  onCreated: () => Promise<void>
+  onSaved: () => Promise<void>
 }) {
+  const editing = !!item
   const [name, setName] = useState("")
   const [studentNo, setStudentNo] = useState("")
   const [date, setDate] = useState(today())
@@ -394,17 +454,30 @@ function AddItemDialog({ open, onOpenChange, batchId, onCreated }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
 
-  function reset() {
-    setName("")
-    setStudentNo("")
-    setDate(today())
-    setPayroll("")
-    setTax("0")
-    setTip("0")
-    setShouldReturn("")
-    setNote("")
+  // 打开时按"新建/编辑"填充初始值
+  useEffect(() => {
+    if (!open) return
     setError("")
-  }
+    if (item) {
+      setName(item.participant.name)
+      setStudentNo(item.participant.student_no)
+      setDate(item.date)
+      setPayroll(fen2yuan(item.payroll_amount))
+      setTax(fen2yuan(item.tax_amount))
+      setTip(fen2yuan(item.tip_amount))
+      setShouldReturn(fen2yuan(item.should_return))
+      setNote(item.note)
+    } else {
+      setName("")
+      setStudentNo("")
+      setDate(today())
+      setPayroll("")
+      setTax("0")
+      setTip("0")
+      setShouldReturn("")
+      setNote("")
+    }
+  }, [open, item])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -423,6 +496,7 @@ function AddItemDialog({ open, onOpenChange, batchId, onCreated }: {
       setError("扣税或辛苦费金额不合法")
       return
     }
+    // 显式填了应交（含 0）就覆盖；留空则交后端按公式自动算
     let override: number | undefined
     if (shouldReturn.trim()) {
       const v = yuan2fen(shouldReturn)
@@ -435,22 +509,35 @@ function AddItemDialog({ open, onOpenChange, batchId, onCreated }: {
     setBusy(true)
     setError("")
     try {
-      await financeApi.createItem(batchId, {
-        name: name.trim(),
-        student_no: studentNo.trim(),
-        date,
-        payroll_amount: payrollFen,
-        tax_amount: taxFen,
-        tip_amount: tipFen,
-        ...(override !== undefined ? { should_return: override } : {}),
-        note: note.trim(),
-      })
-      toast.success("明细已添加")
-      reset()
+      if (editing && item) {
+        await financeApi.updateItem(item.id, {
+          date,
+          ...(item.returned > 0 ? {} : {
+            payroll_amount: payrollFen,
+            tax_amount: taxFen,
+            tip_amount: tipFen,
+            should_return: override ?? Math.max(payrollFen - tipFen, 0),
+          }),
+          note: note.trim(),
+        })
+        toast.success("明细已更新")
+      } else {
+        await financeApi.createItem(batchId, {
+          name: name.trim(),
+          student_no: studentNo.trim(),
+          date,
+          payroll_amount: payrollFen,
+          tax_amount: taxFen,
+          tip_amount: tipFen,
+          ...(override !== undefined ? { should_return: override } : {}),
+          note: note.trim(),
+        })
+        toast.success("明细已添加")
+      }
       onOpenChange(false)
-      await onCreated()
+      await onSaved()
     } catch (err) {
-      setError(friendlyFinanceError(err instanceof Error ? err.message : "添加失败"))
+      setError(friendlyFinanceError(err instanceof Error ? err.message : "保存失败"))
     } finally {
       setBusy(false)
     }
@@ -459,28 +546,37 @@ function AddItemDialog({ open, onOpenChange, batchId, onCreated }: {
   const payrollFenLive = yuan2fen(payroll) ?? 0
   const tipFenLive = yuan2fen(tip) ?? 0
   const auto = Math.max(payrollFenLive - tipFenLive, 0)
+  const locked = editing && (item?.returned ?? 0) > 0
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset() }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-md shadow-blue-500/20">
-            <UserPlus className="size-5" />
+            {editing ? <Pencil className="size-5" /> : <UserPlus className="size-5" />}
           </span>
           <DialogHeader className="pt-1.5">
-            <DialogTitle className="text-lg">手动加明细</DialogTitle>
-            <DialogDescription>应交 = 应发 − 辛苦费（扣税仅记录）；留空应交则自动计算</DialogDescription>
+            <DialogTitle className="text-lg">{editing ? "编辑明细" : "手动加明细"}</DialogTitle>
+            <DialogDescription>
+              应交 = 应发 − 辛苦费（扣税只是暂扣、仅作登记，不减税）
+            </DialogDescription>
           </DialogHeader>
         </div>
+
+        {locked && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+            该明细已有上交记录，金额已被锁定，仅可修改日期与备注；如需改金额请先在上交记录里撤销上交。
+          </p>
+        )}
 
         <form onSubmit={submit} className="mt-1 grid grid-cols-2 gap-3.5">
           <div className="space-y-1.5">
             <Label htmlFor="ai-name" className="text-sm font-medium">姓名 <RequiredMark /></Label>
-            <Input id="ai-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="如：张同学" className="h-10" />
+            <Input id="ai-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="如：张同学" className="h-10" disabled={editing} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ai-no" className="text-sm font-medium">学号 <RequiredMark /></Label>
-            <Input id="ai-no" value={studentNo} onChange={(e) => setStudentNo(e.target.value)} placeholder="如：20240001" className="h-10" />
+            <Input id="ai-no" value={studentNo} onChange={(e) => setStudentNo(e.target.value)} placeholder="如：20240001" className="h-10" disabled={editing} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ai-date" className="text-sm font-medium">日期 <RequiredMark /></Label>
@@ -488,22 +584,22 @@ function AddItemDialog({ open, onOpenChange, batchId, onCreated }: {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ai-payroll" className="text-sm font-medium">应发（元） <RequiredMark /></Label>
-            <Input id="ai-payroll" value={payroll} onChange={(e) => setPayroll(e.target.value)} placeholder="如：2500" inputMode="decimal" className="h-10" />
+            <Input id="ai-payroll" value={payroll} onChange={(e) => setPayroll(e.target.value)} placeholder="如：2500" inputMode="decimal" className="h-10" disabled={locked} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ai-tax" className="text-sm font-medium">扣税（元）</Label>
-            <Input id="ai-tax" value={tax} onChange={(e) => setTax(e.target.value)} placeholder="如：0" inputMode="decimal" className="h-10" />
+            <Input id="ai-tax" value={tax} onChange={(e) => setTax(e.target.value)} placeholder="如：0" inputMode="decimal" className="h-10" disabled={locked} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ai-tip" className="text-sm font-medium">辛苦费（元）</Label>
-            <Input id="ai-tip" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="如：100" inputMode="decimal" className="h-10" />
+            <Input id="ai-tip" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="如：100" inputMode="decimal" className="h-10" disabled={locked} />
           </div>
-          <div className="space-y-1.5">
+          <div className="col-span-2 space-y-1.5">
             <Label htmlFor="ai-return" className="text-sm font-medium">应交（元）</Label>
-            <Input id="ai-return" value={shouldReturn} onChange={(e) => setShouldReturn(e.target.value)} placeholder={"自动：" + fen2yuan(auto)} inputMode="decimal" className="h-10" />
-            <p className="text-xs text-muted-foreground">留空则按「应发 − 辛苦费」自动计算</p>
+            <Input id="ai-return" value={shouldReturn} onChange={(e) => setShouldReturn(e.target.value)} placeholder={"留空自动：" + fen2yuan(auto)} inputMode="decimal" className="h-10" disabled={locked} />
+            <p className="text-xs text-muted-foreground">留空则按「应发 − 辛苦费」自动计算；填 0 表示应交为 0。</p>
           </div>
-          <div className="space-y-1.5">
+          <div className="col-span-2 space-y-1.5">
             <Label htmlFor="ai-note" className="text-sm font-medium">备注（选填）</Label>
             <Input id="ai-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="如：7 月劳务费" className="h-10" />
           </div>
@@ -605,6 +701,112 @@ function SubmitDialog({ target, onOpenChange, onSubmitted }: {
   )
 }
 
+// ============ 上交记录 / 撤销 ============
+function SubmissionsDialog({ target, onOpenChange, onChanged, active }: {
+  target: FinanceItem | null
+  onOpenChange: (open: boolean) => void
+  onChanged: () => Promise<void>
+  active: boolean
+}) {
+  const [voidTarget, setVoidTarget] = useState<FinanceSubmission | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!target) {
+      setVoidTarget(null)
+      setBusy(false)
+    }
+  }, [target])
+
+  async function doVoid() {
+    if (!voidTarget) return
+    setBusy(true)
+    try {
+      await financeApi.voidSubmission(voidTarget.id)
+      toast.success("已撤销该笔上交，资金池与余额已回退")
+      setVoidTarget(null)
+      await onChanged()
+      onOpenChange(false)
+    } catch (err) {
+      toast.error(friendlyFinanceError(err instanceof Error ? err.message : "撤销失败"))
+      setVoidTarget(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const subs = target?.submissions ?? []
+
+  return (
+    <>
+      <Dialog open={!!target} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>上交记录</DialogTitle>
+            <DialogDescription>
+              {target
+                ? target.participant.name + " · 已交 ¥" + fen2yuan(target.returned) + " / 应交 ¥" + fen2yuan(target.should_return)
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {subs.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">暂无上交记录</p>
+          ) : (
+            <div className="max-h-[60vh] overflow-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">上交日期</th>
+                    <th className="px-3 py-2 text-right font-medium">金额</th>
+                    <th className="px-3 py-2 font-medium">备注</th>
+                    {active && <th className="px-3 py-2 text-right font-medium">操作</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {subs.map((sub) => (
+                    <tr key={sub.id} className="border-b last:border-0">
+                      <td className="px-3 py-2 tabular-nums">{fmtDate(sub.date)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">¥{fen2yuan(sub.amount)}</td>
+                      <td className="max-w-[12rem] truncate px-3 py-2 text-muted-foreground" title={sub.note}>{sub.note || "—"}</td>
+                      {active && (
+                        <td className="px-3 py-2 text-right">
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setVoidTarget(sub)}>
+                            <Undo2 /> 撤销
+                          </Button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            撤销会删除该笔上交记录，并自动回退资金池余额与个人应交余额，不影响其他上交记录。
+          </p>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!voidTarget} onOpenChange={(open) => !open && setVoidTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>撤销这笔上交?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {voidTarget ? "将删除 " + fmtDate(voidTarget.date) + " 的 ¥" + fen2yuan(voidTarget.amount) + " 上交记录，并回退资金池与应交余额。此操作不可恢复。" : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={(e) => { e.preventDefault(); void doVoid() }} disabled={busy}>
+              {busy ? "撤销中…" : "确认撤销"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
 // ============ 导入 Excel 预览 ============
 function ImportPreviewDialog({ preview, onOpenChange, confirming, onConfirm }: {
   preview: ImportPreview | null
@@ -635,6 +837,7 @@ function ImportPreviewDialog({ preview, onOpenChange, confirming, onConfirm }: {
                   <th className="px-3 py-2 text-right font-medium">应发</th>
                   <th className="px-3 py-2 text-right font-medium">扣税</th>
                   <th className="px-3 py-2 text-right font-medium">辛苦费</th>
+                  <th className="px-3 py-2 text-right font-medium">应交</th>
                   <th className="px-3 py-2 font-medium">备注</th>
                 </tr>
               </thead>
@@ -647,6 +850,7 @@ function ImportPreviewDialog({ preview, onOpenChange, confirming, onConfirm }: {
                     <td className="px-3 py-1.5 text-right tabular-nums">{fen2yuan(r.payroll_amount)}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums">{fen2yuan(r.tax_amount)}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums">{fen2yuan(r.tip_amount)}</td>
+                    <td className="px-3 py-1.5 text-right font-medium tabular-nums">{fen2yuan(Math.max(r.payroll_amount - r.tip_amount, 0))}</td>
                     <td className="px-3 py-1.5">{r.note || "—"}</td>
                   </tr>
                 ))}
