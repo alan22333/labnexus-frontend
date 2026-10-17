@@ -73,7 +73,7 @@ labnexus-frontend/
 ├── src/
 │   ├── main.tsx            # 入口:Router + Theme + Auth + Tooltip
 │   ├── App.tsx             # 路由(懒加载分包)
-│   ├── index.css           # Tailwind v4 + shadcn 主题变量(主色 #3b82f6)
+│   ├── index.css           # Tailwind v4 + shadcn 主题变量(主色 深钴蓝 oklch(0.5 0.17 262) ≈ #285cc2)
 │   ├── lib/
 │   │   ├── api.ts          # API 客户端(401 自动 refresh、blob 下载)
 │   │   ├── types.ts        # 与后端 api-contract.md 对齐的类型
@@ -95,7 +95,8 @@ labnexus-frontend/
 - 开发前先读后端仓库的 `AGENTS.md` 与 `docs/api-contract.md`
 - 每完成一个功能,按后端契约联调,并通过后端的手工验收清单(`docs/manual-acceptance.md`)
 - **管理后台(/admin)**:已实现(后端契约见 `docs/specs/admin-console.md` §4 与 §8);顶栏入口复用 `/finance` 的角色过滤模式(`user.role === "admin"`)
-- 主题色主蓝 `#3b82f6`,字体系统中文栈,均已在 `src/index.css` 配置
+- 主题色为深钴蓝(亮色 `oklch(0.5 0.17 262)` ≈ `#285cc2`,暗色 `oklch(0.66 0.16 262)` ≈ `#5a8ff3`),
+  用 OKLCH 语义令牌定义;中性色带蓝灰调,字体系统中文栈,均已在 `src/index.css` 配置
 
 ## License
 
