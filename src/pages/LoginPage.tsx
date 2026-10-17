@@ -1,16 +1,19 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import {
-  ArrowRight, BookOpen, ClipboardList, FlaskConical, Loader2, Lock, MessageSquareText, Users,
+  ArrowRight, BookOpen, ClipboardList, FlaskConical, KeyRound, Loader2, Lock, LogIn,
+  MessageSquareText, Users,
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/use-auth"
+import { DEMO_ACCOUNTS, showDemoAccounts, type DemoAccount } from "@/lib/demo-accounts"
 import { cn } from "@/lib/utils"
 
 const FEATURES = [
@@ -52,6 +55,29 @@ export function LoginPage() {
     try {
       await login(username.trim(), password)
       toast.success("欢迎回来!")
+      navigate("/", { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "登录失败")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 点击演示账号:填充表单
+  function fillDemo(account: DemoAccount) {
+    setError("")
+    setMode("login")
+    setUsername(account.username)
+    setPassword(account.password)
+  }
+
+  // 点击演示账号「直接登录」
+  async function loginAs(account: DemoAccount) {
+    fillDemo(account)
+    setBusy(true)
+    try {
+      await login(account.username, account.password)
+      toast.success(`已登录:${account.roleLabel} · ${account.name}`)
       navigate("/", { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败")
@@ -163,6 +189,7 @@ export function LoginPage() {
           <Separator />
           <CardContent className="pt-5">
             {mode === "login" ? (
+              <>
               <form onSubmit={handleLogin} className="space-y-5">
                 <Field label="用户名" htmlFor="username">
                   <Input
@@ -196,6 +223,10 @@ export function LoginPage() {
                   登录
                 </Button>
               </form>
+              {showDemoAccounts && (
+                <DemoAccounts busy={busy} onFill={fillDemo} onLogin={loginAs} />
+              )}
+              </>
             ) : (
               <form onSubmit={handleRegister} className="space-y-5">
                 <Field label="邀请码" htmlFor="invite_code">
@@ -299,5 +330,58 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
         </button>
       ))}
     </div>
+  )
+}
+
+/* 演示账号快捷区:点击一行填入账号密码,右侧图标一键直接登录。
+   仅在开发环境或显式开启 VITE_SHOW_DEMO_ACCOUNTS 时渲染,见 lib/demo-accounts。 */
+function DemoAccounts({
+  busy,
+  onFill,
+  onLogin,
+}: {
+  busy: boolean
+  onFill: (account: DemoAccount) => void
+  onLogin: (account: DemoAccount) => void
+}) {
+  return (
+    <section className="mt-5 rounded-lg border border-dashed border-border bg-muted/40 p-3">
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <KeyRound className="size-3.5" />
+        演示账号 · 点击填入,右侧图标直接登录
+      </div>
+      <ul className="space-y-0.5">
+        {DEMO_ACCOUNTS.map((account) => (
+          <li key={account.username}>
+            <div className="flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-background">
+              <button
+                type="button"
+                onClick={() => onFill(account)}
+                title="填入账号密码"
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <span className="font-mono text-xs font-medium">{account.username}</span>
+                <span className="truncate font-mono text-xs text-muted-foreground">
+                  {account.password}
+                </span>
+                <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">
+                  {account.name}
+                </span>
+                <Badge variant="outline" className="shrink-0">{account.roleLabel}</Badge>
+              </button>
+              <button
+                type="button"
+                onClick={() => onLogin(account)}
+                disabled={busy}
+                title={`直接以 ${account.name} 登录`}
+                className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+              >
+                <LogIn className="size-3.5" />
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
