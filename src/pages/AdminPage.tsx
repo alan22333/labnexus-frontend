@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react"
 import {
-  Copy, Loader2, Pencil, Plus, RefreshCw, Search, Settings, ShieldCheck, Ticket, Trash2, Users,
+  Copy, FolderTree, Loader2, Pencil, Plus, RefreshCw, Search, Settings, ShieldCheck, Ticket, Trash2, Users,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/hooks/use-auth"
 import { adminApi } from "@/lib/api"
-import type { Invite, Role, TaskType, User } from "@/lib/types"
+import type { Invite, ResourceCategory, Role, TaskType, User } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -44,6 +44,9 @@ const ADMIN_ERROR_MAP: Record<string, string> = {
   "task type name is empty": "任务类型名称不能为空",
   "task type already exists": "任务类型名称已存在",
   "task type not found": "任务类型不存在或已被删除",
+  "resource category name is empty": "资源分类名称不能为空",
+  "resource category already exists": "资源分类名称已存在",
+  "resource category not found": "资源分类不存在或已被删除",
   "user not found": "成员不存在或已被删除",
   "invite not found": "邀请码不存在或已被撤销",
 }
@@ -92,10 +95,12 @@ export function AdminPage() {
           <TabsTrigger value="users"><Users /> 成员</TabsTrigger>
           <TabsTrigger value="invites"><Ticket /> 邀请码</TabsTrigger>
           <TabsTrigger value="task-types"><Settings /> 任务类型</TabsTrigger>
+          <TabsTrigger value="resource-categories"><FolderTree /> 资源分类</TabsTrigger>
         </TabsList>
         <TabsContent value="users" className="mt-4"><MembersPanel /></TabsContent>
         <TabsContent value="invites" className="mt-4"><InvitesPanel /></TabsContent>
         <TabsContent value="task-types" className="mt-4"><TaskTypesPanel /></TabsContent>
+        <TabsContent value="resource-categories" className="mt-4"><ResourceCategoriesPanel /></TabsContent>
       </Tabs>
     </div>
   )
@@ -756,6 +761,250 @@ function TaskTypesPanel() {
               variant="destructive"
               disabled={deleting}
               onClick={(e) => { e.preventDefault(); void deleteTaskType() }}
+            >
+              {deleting && <Loader2 className="animate-spin" />} 删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+/* ---------- 资源分类管理(F7 资源库 v2) ---------- */
+
+type CategoryForm = {
+  name: string
+  sort: number
+  active: boolean
+}
+
+const EMPTY_CATEGORY: CategoryForm = { name: "", sort: 0, active: true }
+
+function ResourceCategoriesPanel() {
+  const [categories, setCategories] = useState<ResourceCategory[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<ResourceCategory | null>(null)
+  const [form, setForm] = useState<CategoryForm>(EMPTY_CATEGORY)
+  const [busy, setBusy] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ResourceCategory | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await adminApi.resourceCategories()
+      setCategories(data.categories ?? [])
+    } catch (err) {
+      toast.error(friendlyAdminError(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  function openCreate() {
+    setEditing(null)
+    setForm({ ...EMPTY_CATEGORY, sort: (categories.at(-1)?.sort ?? 0) + 1 })
+    setDialogOpen(true)
+  }
+
+  function openEdit(item: ResourceCategory) {
+    setEditing(item)
+    setForm({ name: item.name, sort: item.sort, active: item.active })
+    setDialogOpen(true)
+  }
+
+  async function saveCategory(e: FormEvent) {
+    e.preventDefault()
+    if (!form.name.trim()) {
+      toast.error("资源分类名称不能为空")
+      return
+    }
+    setBusy(true)
+    try {
+      if (editing) {
+        const data = await adminApi.updateResourceCategory(editing.id, {
+          name: form.name.trim(),
+          sort: form.sort,
+          active: form.active,
+        })
+        setCategories((list) => list.map((item) => (item.id === editing.id ? data.category : item)))
+        toast.success("资源分类已更新")
+      } else {
+        const data = await adminApi.createResourceCategory({ name: form.name.trim(), sort: form.sort })
+        setCategories((list) => [...list, data.category].sort((a, b) => a.sort - b.sort))
+        toast.success("资源分类已创建")
+      }
+      setDialogOpen(false)
+    } catch (err) {
+      toast.error(friendlyAdminError(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deleteCategory() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await adminApi.deleteResourceCategory(deleteTarget.id)
+      setCategories((list) => list.filter((item) => item.id !== deleteTarget.id))
+      toast.success("资源分类已删除")
+      setDeleteTarget(null)
+    } catch (err) {
+      toast.error(friendlyAdminError(err))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <>
+      <Panel
+        title={`资源分类（${categories.length}）`}
+        description="管理员维护的资源字典；停用后不再出现在新建/筛选下拉，删除后引用它的资源回退为未分类。"
+        actions={
+          <>
+            <Button variant="outline" size="icon-sm" onClick={() => void load()} disabled={loading} title="刷新">
+              {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            </Button>
+            <Button size="sm" onClick={openCreate}>
+              <Plus /> 新建分类
+            </Button>
+          </>
+        }
+      >
+        {loading ? (
+          skeletonRows(4)
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <Th>名称</Th>
+                  <Th>状态</Th>
+                  <Th className="hidden text-center sm:table-cell">排序</Th>
+                  <Th className="text-right">操作</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.length === 0
+                  ? emptyRow(4, "暂无资源分类")
+                  : categories.map((item) => (
+                      <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className="font-medium">{item.name}</span>
+                            {item.builtin && <Badge variant="outline">内置</Badge>}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <Badge variant={item.active ? "secondary" : "destructive"}>
+                            {item.active ? "启用" : "停用"}
+                          </Badge>
+                        </td>
+                        <td className="hidden px-5 py-3 text-center text-xs text-muted-foreground tabular-nums sm:table-cell">
+                          {item.sort}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon-sm" onClick={() => openEdit(item)} title="编辑">
+                              <Pencil />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteTarget(item)}
+                              title="删除"
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "编辑资源分类" : "新建资源分类"}</DialogTitle>
+            <DialogDescription>名称需唯一；分类用于资源的单维归置，配合标签做多维检索。</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={saveCategory} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="category-name">名称</Label>
+              <Input
+                id="category-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="如: 文献"
+                maxLength={50}
+                autoFocus
+              />
+            </div>
+            {editing ? (
+              <div className="grid grid-cols-[1fr_auto] items-end gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="category-sort">排序</Label>
+                  <Input
+                    id="category-sort"
+                    type="number"
+                    value={form.sort}
+                    onChange={(e) => setForm({ ...form, sort: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <Label className="mb-2 cursor-pointer">
+                  <Checkbox
+                    checked={form.active}
+                    onCheckedChange={(checked) => setForm({ ...form, active: checked === true })}
+                  />
+                  启用
+                </Label>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="category-sort-new">排序</Label>
+                <Input
+                  id="category-sort-new"
+                  type="number"
+                  value={form.sort}
+                  onChange={(e) => setForm({ ...form, sort: Number(e.target.value) || 0 })}
+                />
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
+              <Button type="submit" disabled={busy}>{busy && <Loader2 className="animate-spin" />} 保存</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除资源分类？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget ? `“${deleteTarget.name}”删除后，引用它的已有资源将回退为未分类（资源本身不受影响）。` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={(e) => { e.preventDefault(); void deleteCategory() }}
             >
               {deleting && <Loader2 className="animate-spin" />} 删除
             </AlertDialogAction>

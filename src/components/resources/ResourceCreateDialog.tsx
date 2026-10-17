@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { FileText, Link2, Loader2, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { TagPicker } from "@/components/documents/TagPicker"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -13,8 +17,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { resourceApi } from "@/lib/api"
-import type { Resource, ResourceType } from "@/lib/types"
+import { ApiError, resourceApi } from "@/lib/api"
+import type { Resource, ResourceCategory, ResourceType } from "@/lib/types"
 
 interface Props {
   open: boolean
@@ -24,6 +28,8 @@ interface Props {
   onSaved?: () => void
 }
 
+const UNCATEGORIZED = "__none__"
+
 /** 资源创建/编辑对话框(link 表单 或 file 上传) */
 export function ResourceCreateDialog({ open, onOpenChange, initialType = "link", resource, onSaved }: Props) {
   const [type, setType] = useState<ResourceType>(initialType)
@@ -32,8 +38,20 @@ export function ResourceCreateDialog({ open, onOpenChange, initialType = "link",
   const [description, setDescription] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const [tagIds, setTagIds] = useState<string[]>([])
+  const [categoryId, setCategoryId] = useState<string>(UNCATEGORIZED)
+  const [categories, setCategories] = useState<ResourceCategory[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [dupResourceId, setDupResourceId] = useState<string | null>(null)
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const data = await resourceApi.categories()
+      setCategories(data.categories ?? [])
+    } catch {
+      setCategories([])
+    }
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -43,10 +61,13 @@ export function ResourceCreateDialog({ open, onOpenChange, initialType = "link",
     setDescription(resource?.description ?? "")
     setFile(null)
     setTagIds(resource?.tags?.map((t) => t.id) ?? [])
+    setCategoryId(resource?.category?.id ?? UNCATEGORIZED)
     setError("")
-  }, [open, resource, initialType])
+    setDupResourceId(null)
+    void loadCategories()
+  }, [open, resource, initialType, loadCategories])
 
-  async function save() {
+  async function save(force = false) {
     if (!title.trim()) {
       setError("标题不能为空")
       return
@@ -54,27 +75,47 @@ export function ResourceCreateDialog({ open, onOpenChange, initialType = "link",
     setBusy(true)
     setError("")
     try {
+      const catId = categoryId === UNCATEGORIZED ? undefined : categoryId
       if (resource) {
         await resourceApi.update(resource.id, {
           title: title.trim(),
           description,
           tag_ids: tagIds,
+          category_id: catId ?? null,
         })
         toast.success("资源已更新")
       } else if (type === "link") {
-        await resourceApi.createLink({ title: title.trim(), url: url.trim(), description, tag_ids: tagIds })
+        await resourceApi.createLink({
+          title: title.trim(),
+          url: url.trim(),
+          description,
+          tag_ids: tagIds,
+          category_id: catId,
+          force,
+        })
         toast.success("链接已收藏")
       } else {
         if (!file) {
           setError("请选择文件")
+          setBusy(false)
           return
         }
-        await resourceApi.upload({ file, title: title.trim(), description, tag_ids: tagIds })
+        await resourceApi.upload({ file, title: title.trim(), description, tag_ids: tagIds, category_id: catId })
         toast.success("文件已上传")
       }
+      setDupResourceId(null)
       onOpenChange(false)
       onSaved?.()
     } catch (err) {
+      // 链接重复 → 弹出二次确认,确认后 force 重试
+      if (!resource && type === "link" && err instanceof ApiError && err.status === 409) {
+        const existing = (err.data as { existing_id?: string } | undefined)?.existing_id
+        if (existing) {
+          setDupResourceId(existing)
+          setBusy(false)
+          return
+        }
+      }
       setError(err instanceof Error ? err.message : "保存失败")
     } finally {
       setBusy(false)
@@ -143,6 +184,21 @@ export function ResourceCreateDialog({ open, onOpenChange, initialType = "link",
           )}
 
           <div className="space-y-2">
+            <Label>分类</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="未分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNCATEGORIZED}>未分类</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="res-desc">描述</Label>
             <Textarea id="res-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="用途 / 备注(可选)" className="min-h-20" />
           </div>
@@ -157,12 +213,32 @@ export function ResourceCreateDialog({ open, onOpenChange, initialType = "link",
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-          <Button onClick={save} disabled={busy}>
+          <Button onClick={() => void save()} disabled={busy}>
             {busy && <Loader2 className="animate-spin" />}
             保存
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={dupResourceId != null} onOpenChange={(v) => !v && setDupResourceId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>该链接已存在于资源库</AlertDialogTitle>
+            <AlertDialogDescription>
+              同一条链接此前已被收藏。确认仍要再收藏一份吗?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => { e.preventDefault(); void save(true) }}
+            >
+              {busy && <Loader2 className="animate-spin" />} 仍然收藏
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

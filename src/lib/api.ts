@@ -1,7 +1,7 @@
 import type {
   Comment, Document, FinanceBatch, FinanceBatchDetail, FinanceBatchListItem, FinanceBill, FinanceItem, FinanceLedger,
   FinanceSubmission, FinanceTransaction, Folder, ImportPreview, Milestone, Pagination,
-  Invite, ParticipantStat, Project, ProjectDetail, Resource, SearchResults, SpaceResponse, Tag,
+  Invite, ParticipantStat, Project, ProjectDetail, Resource, ResourceCategory, ResourceSort, SearchResults, SpaceResponse, Tag,
   Role, Task, TaskType, User, Visibility,
 } from "./types"
 
@@ -22,11 +22,14 @@ export function clearToken() {
 export class ApiError extends Error {
   code: string
   status: number
-  constructor(status: number, code: string, message: string) {
+  /** 后端错误响应体(如 409 去重时的 existing_id),便于调用方做二次确认。 */
+  data?: unknown
+  constructor(status: number, code: string, message: string, data?: unknown) {
     super(message)
     this.name = "ApiError"
     this.code = code
     this.status = status
+    this.data = data
   }
 }
 
@@ -90,7 +93,12 @@ async function request<T>(path: string, init: RequestInit = {}, retried = false)
 
   if (!res.ok) {
     const err = (data as { error?: { code?: string; message?: string } })?.error
-    throw new ApiError(res.status, err?.code ?? "INTERNAL", err?.message ?? `请求失败(HTTP ${res.status})`)
+    throw new ApiError(
+      res.status,
+      err?.code ?? "INTERNAL",
+      err?.message ?? `请求失败(HTTP ${res.status})`,
+      data,
+    )
   }
   return data as T
 }
@@ -162,24 +170,61 @@ export const searchApi = {
     request<SearchResults>(`/search${buildQuery({ q, type })}`),
 }
 
-// ============ 资源库 F7 ============
+// ============ 资源库 F7(v2:检索/分类/置顶/计数/收藏) ============
+export interface ResourceListQuery {
+  type?: "link" | "file"
+  keyword?: string
+  tag_ids?: string
+  category_id?: string
+  uncategorized?: boolean
+  uploader_id?: string
+  mine?: boolean
+  favorited?: boolean
+  pinned?: boolean
+  sort?: ResourceSort
+  page?: number
+  page_size?: number
+}
+
+export interface ResourceCreateInput {
+  title: string
+  url: string
+  description?: string
+  category_id?: string
+  tag_ids?: string[]
+  force?: boolean
+}
+
+export interface ResourceUpdateInput {
+  title?: string
+  description?: string
+  category_id?: string | null
+  pinned?: boolean
+  tag_ids?: string[]
+}
+
 export const resourceApi = {
-  list: (q?: { type?: "link" | "file"; tag_id?: string; keyword?: string; page?: number; page_size?: number }) =>
-    request<{ resources: Resource[]; pagination: Pagination }>(`/resources${buildQuery(q)}`),
-  createLink: (body: { title: string; url: string; description?: string; tag_ids?: string[] }) =>
-    request<{ resource: Resource }>("/resources", { method: "POST", body: JSON.stringify(body) }),
-  upload: (body: { file: File; title?: string; description?: string; tag_ids?: string[] }) => {
+  list: (q?: ResourceListQuery) =>
+    request<{ resources: Resource[]; pagination: Pagination }>(`/resources${buildQuery(q as Query)}`),
+  createLink: (body: ResourceCreateInput) =>
+    request<{ resource: Resource }>("/resources", { method: "POST", body: JSON.stringify({ type: "link", ...body }) }),
+  upload: (body: { file: File; title?: string; description?: string; category_id?: string; tag_ids?: string[] }) => {
     const form = new FormData()
     form.append("file", body.file)
     if (body.title) form.append("title", body.title)
     if (body.description) form.append("description", body.description)
+    if (body.category_id) form.append("category_id", body.category_id)
     if (body.tag_ids?.length) form.append("tag_ids", JSON.stringify(body.tag_ids))
     return request<{ resource: Resource }>("/resources/upload", { method: "POST", body: form })
   },
   get: (id: string) => request<{ resource: Resource }>(`/resources/${id}`),
-  update: (id: string, body: { title?: string; description?: string; tag_ids?: string[] }) =>
+  update: (id: string, body: ResourceUpdateInput) =>
     request<{ resource: Resource }>(`/resources/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   remove: (id: string) => request<void>(`/resources/${id}`, { method: "DELETE" }),
+  view: (id: string) => request<void>(`/resources/${id}/view`, { method: "POST" }),
+  favorite: (id: string) => request<void>(`/resources/${id}/favorite`, { method: "POST" }),
+  unfavorite: (id: string) => request<void>(`/resources/${id}/favorite`, { method: "DELETE" }),
+  categories: () => request<{ categories: ResourceCategory[] }>("/resource-categories"),
 }
 
 // ============ 项目与任务 F9 ============
@@ -259,6 +304,15 @@ export const adminApi = {
     body: { name?: string; color?: string; sort?: number; active?: boolean }
   ) => request<{ task_type: TaskType }>(`/admin/task-types/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteTaskType: (id: string) => request<void>(`/admin/task-types/${id}`, { method: "DELETE" }),
+  resourceCategories: () => request<{ categories: ResourceCategory[] }>("/admin/resource-categories"),
+  createResourceCategory: (body: { name: string; sort?: number }) =>
+    request<{ category: ResourceCategory }>("/admin/resource-categories", { method: "POST", body: JSON.stringify(body) }),
+  updateResourceCategory: (id: string, body: { name?: string; sort?: number; active?: boolean }) =>
+    request<{ category: ResourceCategory }>(`/admin/resource-categories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deleteResourceCategory: (id: string) => request<void>(`/admin/resource-categories/${id}`, { method: "DELETE" }),
 }
 
 // ============ 经费管理 F10(仅 admin/supervisor,金额以分传输) ============

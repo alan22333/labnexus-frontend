@@ -69,6 +69,17 @@ export interface Comment {
 
 export type ResourceType = "link" | "file"
 
+export type ResourceSort = "latest" | "oldest" | "title" | "size" | "useful"
+
+export interface ResourceCategory {
+  id: string
+  name: string
+  sort: number
+  builtin: boolean
+  active: boolean
+  created_at?: string
+}
+
 export interface Resource {
   id: string
   type: ResourceType
@@ -83,6 +94,11 @@ export interface Resource {
   uploader: Author
   uploader_id?: string
   tags: Tag[]
+  category: ResourceCategory | null
+  pinned: boolean
+  view_count: number
+  download_count: number
+  favorited: boolean
   created_at: string
   updated_at: string
 }
