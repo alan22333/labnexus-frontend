@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Download, ExternalLink, FileText, Eye, Link2, Loader2, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2,
+  Download, ExternalLink, FileText, Eye, FolderKanban, ImageIcon, Link2, Loader2, Pencil, Plus, RefreshCw,
+  RotateCcw, Search, Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -127,8 +128,8 @@ export function ResourcesPage() {
     <div>
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">资源库</h1>
-          <p className="text-sm text-muted-foreground">课题组共享库 · 链接与文件统一入库</p>
+          <h1 className="text-lg font-semibold tracking-tight">资源库</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">课题组共享库 · 链接与文件统一入库</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => void load(1, false)} className="active:bg-muted">
@@ -152,8 +153,12 @@ export function ResourcesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">全部类型</SelectItem>
-              <SelectItem value="link">🔗 链接</SelectItem>
-              <SelectItem value="file">📎 文件</SelectItem>
+              <SelectItem value="link">
+                <span className="flex items-center gap-2"><Link2 className="size-4 text-muted-foreground" />链接</span>
+              </SelectItem>
+              <SelectItem value="file">
+                <span className="flex items-center gap-2"><FileText className="size-4 text-muted-foreground" />文件</span>
+              </SelectItem>
             </SelectContent>
           </Select>
           <div className="relative min-w-40 flex-1">
@@ -195,8 +200,10 @@ export function ResourcesPage() {
         </div>
       ) : resources.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-background py-20 text-center">
-          <p className="text-3xl">📚</p>
-          <p className="mt-2 text-sm text-muted-foreground">暂无资源,上传文件或收藏第一个链接吧</p>
+          <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <FolderKanban className="size-5" />
+          </span>
+          <p className="mt-3 text-sm text-muted-foreground">暂无资源,上传文件或收藏第一个链接吧</p>
         </div>
       ) : (
         <>
@@ -255,6 +262,46 @@ export function ResourcesPage() {
   )
 }
 
+/** 图片资源携带登录令牌,需先取回二进制再转本地对象地址作为封面 */
+function ResourceThumb({ src, alt }: { src: string; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    let objectUrl: string | null = null
+    fetchBlob(src)
+      .then((blob) => {
+        if (!active) return
+        objectUrl = URL.createObjectURL(blob)
+        setUrl(objectUrl)
+      })
+      .catch(() => active && setFailed(true))
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [src])
+
+  if (failed) {
+    return (
+      <div className="flex h-36 items-center justify-center bg-muted/40 text-muted-foreground">
+        <ImageIcon className="size-6" />
+      </div>
+    )
+  }
+  if (!url) return <Skeleton className="h-36 w-full rounded-none" />
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      className="h-36 w-full bg-muted/30 object-cover"
+    />
+  )
+}
+
 function ResourceCard({
   resource: r, canManage, onPreview, onDownload, onEdit, onDelete,
 }: {
@@ -266,12 +313,24 @@ function ResourceCard({
   onDelete: () => void
 }) {
   const isLink = r.type === "link"
+  const isImage = !isLink && r.preview?.type === "image" && Boolean(r.preview?.url)
   return (
-    <Card className="flex flex-col p-4 transition-shadow hover:shadow-md">
+    <Card className="flex flex-col gap-0 overflow-hidden p-0 transition-shadow hover:shadow-raised">
+      {isImage && (
+        <button
+          type="button"
+          onClick={onPreview}
+          className="block w-full cursor-pointer border-b outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          aria-label={`预览图片 ${r.title}`}
+        >
+          <ResourceThumb src={r.preview.url as string} alt={r.title} />
+        </button>
+      )}
+      <div className="flex flex-1 flex-col p-4">
       <div className="flex items-start gap-3">
         <span className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-xl",
-          isLink ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
+          "flex size-10 shrink-0 items-center justify-center rounded-lg",
+          isLink ? "bg-success/10 text-success" : "bg-primary/10 text-primary"
         )}>
           {isLink ? <Link2 className="size-5" /> : <FileText className="size-5" />}
         </span>
@@ -293,9 +352,9 @@ function ResourceCard({
         <p className="mt-2.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{r.description}</p>
       )}
 
-      <TagBadges tags={r.tags} className="mt-2.5" />
+      <TagBadges tags={r.tags} className="mt-2.5 mb-3" />
 
-      <div className="mt-3 flex items-center gap-1.5 border-t pt-2.5 text-xs text-muted-foreground">
+      <div className="mt-auto flex items-center gap-1.5 border-t pt-2.5 text-xs text-muted-foreground">
         <Avatar name={r.uploader?.display_name ?? "?"} id={r.uploader?.id} className="size-5" />
         <span className="line-clamp-1">{r.uploader?.display_name}</span>
         <span className="ml-auto shrink-0">{timeAgo(r.created_at)}</span>
@@ -330,6 +389,7 @@ function ResourceCard({
             </Button>
           </div>
         )}
+      </div>
       </div>
     </Card>
   )

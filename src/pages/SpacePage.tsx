@@ -142,8 +142,8 @@ export function SpacePage() {
     <div>
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">我的空间</h1>
-          <p className="text-sm text-muted-foreground">个人笔记与目录 · 私有内容仅自己可见</p>
+          <h1 className="text-lg font-semibold tracking-tight">我的空间</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">个人笔记与目录 · 私有内容仅自己可见</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => void loadTree()}>
@@ -229,7 +229,7 @@ export function SpacePage() {
                     <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className={cn(
                         "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        doc.visibility === "public" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-600"
+                        doc.visibility === "public" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
                       )}>
                         {doc.visibility === "public" ? "公开" : "私有"}
                       </span>

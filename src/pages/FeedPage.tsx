@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Loader2, PenSquare, RefreshCw } from "lucide-react"
+import { Loader2, PenSquare, RefreshCw, Sparkles } from "lucide-react"
 
 import { DocumentCard } from "@/components/documents/DocumentCard"
 import { DocumentEditorDialog } from "@/components/documents/DocumentEditorDialog"
@@ -56,8 +56,8 @@ export function FeedPage() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">信息流</h1>
-          <p className="text-sm text-muted-foreground">课题组公开动态 · 科研朋友圈</p>
+          <h1 className="text-lg font-semibold tracking-tight">信息流</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">课题组公开动态 · 科研朋友圈</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => load(sort, 1, false)}>
@@ -99,8 +99,10 @@ export function FeedPage() {
         </div>
       ) : docs.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-background py-16 text-center">
-          <p className="text-3xl">🧪</p>
-          <p className="mt-2 text-sm text-muted-foreground">还没有公开帖子</p>
+          <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Sparkles className="size-5" />
+          </span>
+          <p className="mt-3 text-sm text-muted-foreground">还没有公开帖子</p>
           <Button className="mt-4" variant="outline" onClick={() => setEditorOpen(true)}>
             发布第一篇帖子
           </Button>

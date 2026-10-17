@@ -89,9 +89,17 @@ export function FinancePage() {
   }
 
   const unreturnedCount = batches.reduce((n, b) => n + (b.summary?.total_unreturned ?? 0), 0)
+  const txs = ledger?.transactions ?? []
+  const incomeTotal = txs.reduce((n, t) => (t.type === "income" ? n + t.amount : n), 0)
+  const expenseTotal = txs.reduce((n, t) => (t.type === "expense" ? n + t.amount : n), 0)
 
   return (
     <div className="space-y-4">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight">经费管理</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">周转批次 · 上交登记 · 资金池流水</p>
+      </div>
+
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center gap-2">
           <TabsList>
@@ -102,30 +110,43 @@ export function FinancePage() {
               <Boxes /> 参与同学
             </TabsTrigger>
           </TabsList>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => setNewOpen(true)}>
-              <Plus /> 新建批次
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />} 刷新
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}>
+            {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />} 刷新
+          </Button>
         </div>
 
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="overview" className="mt-4 space-y-4">
           {/* 资金池 */}
-          <Card className="border-primary/20 bg-gradient-to-br from-blue-50 to-sky-50 p-5 dark:from-blue-950/40 dark:to-sky-950/40">
-            <div className="flex flex-wrap items-center gap-4">
+          <Card className="p-0">
+            <div className="flex flex-wrap items-end gap-x-10 gap-y-5 px-5 py-5">
               <div>
-                <p className="text-xs text-muted-foreground">资金池余额（收入 − 支出）</p>
-                <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">¥{fen2yuan(ledger?.balance)}</p>
+                <p className="text-xs text-muted-foreground">资金池余额</p>
+                <p className="mt-1.5 text-3xl leading-none font-semibold tracking-tight tabular-nums">
+                  ¥{fen2yuan(ledger?.balance)}
+                </p>
               </div>
-              <div className="ml-auto flex flex-wrap gap-2">
+              <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">累计收入</dt>
+                  <dd className="mt-1 font-medium tabular-nums">¥{fen2yuan(incomeTotal)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">累计支出</dt>
+                  <dd className="mt-1 font-medium tabular-nums">¥{fen2yuan(expenseTotal)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">待回收</dt>
+                  <dd className={cn("mt-1 font-medium tabular-nums", unreturnedCount > 0 && "text-destructive")}>
+                    ¥{fen2yuan(unreturnedCount)}
+                  </dd>
+                </div>
+              </dl>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setIncomeOpen(true)}>
                   <ArrowUpFromLine /> 导师补充
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setExpenseOpen(true)}>
-                  <ArrowDownToLine /> 支出
+                  <ArrowDownToLine /> 资金支出
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setLedgerOpen(true)}>
                   流水明细
@@ -134,49 +155,74 @@ export function FinancePage() {
             </div>
           </Card>
 
-          {/* 批次列表 */}
-          <div className="flex items-center justify-between">
-            <h3 className="font-medium">批次（{batches.length}）</h3>
-            {unreturnedCount > 0 && (
-              <span className="text-xs text-destructive">未交合计 ¥{fen2yuan(unreturnedCount)}</span>
+          {/* 周转批次 */}
+          <Card className="p-0">
+            <div className="flex flex-wrap items-center gap-3 border-b px-5 py-4">
+              <div className="min-w-0">
+                <h3 className="font-medium">周转批次</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  共 {batches.length} 个 · 点击任意一行查看明细、登记上交
+                </p>
+              </div>
+              <Button size="sm" className="ml-auto" onClick={() => setNewOpen(true)}>
+                <Plus /> 新建批次
+              </Button>
+            </div>
+            {loading ? (
+              <div className="space-y-2 p-5">
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ) : batches.length === 0 ? (
+              <p className="px-5 py-14 text-center text-sm text-muted-foreground">
+                暂无批次，点「新建批次」开始（如：2026-08）
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs text-muted-foreground">
+                      <th className="px-5 py-2 font-medium">批次</th>
+                      <th className="px-3 py-2 font-medium">状态</th>
+                      <th className="px-3 py-2 text-right font-medium">明细</th>
+                      <th className="px-3 py-2 text-right font-medium">应交</th>
+                      <th className="px-3 py-2 text-right font-medium">已交</th>
+                      <th className="px-3 py-2 text-right font-medium">未交</th>
+                      <th className="px-5 py-2 font-medium">备注</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batches.map((b) => {
+                      const s = b.summary
+                      const un = s?.total_unreturned ?? 0
+                      return (
+                        <tr
+                          key={b.id}
+                          className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                          onClick={() => setActiveBatch(b.id)}
+                        >
+                          <td className="px-5 py-2.5 font-medium">{b.name}</td>
+                          <td className="px-3 py-2.5"><StatusBadge status={b.status} /></td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{s?.item_count ?? 0}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{fen2yuan(s?.total_should_return)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{fen2yuan(s?.total_returned)}</td>
+                          <td className={cn("px-3 py-2.5 text-right tabular-nums", un > 0 && "font-medium text-destructive")}>
+                            {fen2yuan(un)}
+                          </td>
+                          <td className="max-w-[14rem] truncate px-5 py-2.5 text-muted-foreground" title={b.note}>
+                            {b.note || "—"}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
-          {loading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
-          ) : batches.length === 0 ? (
-            <Card className="p-10 text-center text-sm text-muted-foreground">
-              暂无批次，点「新建批次」开始（如：2026-08）
-            </Card>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {batches.map((b) => {
-                const s = b.summary
-                return (
-                  <Card key={b.id} className="cursor-pointer p-4 transition-colors hover:bg-muted/40" onClick={() => setActiveBatch(b.id)}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">📦</span>
-                      <span className="flex-1 truncate font-medium">{b.name}</span>
-                      <StatusBadge status={b.status} />
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
-                      <span>明细 {s?.item_count ?? 0}</span>
-                      <span>应交 <b className="tabular-nums text-foreground">¥{fen2yuan(s?.total_should_return)}</b></span>
-                      <span>已交 <b className="tabular-nums text-emerald-600">¥{fen2yuan(s?.total_returned)}</b></span>
-                      <span className={cn("tabular-nums", (s?.total_unreturned ?? 0) > 0 && "text-destructive")}>
-                        未交 ¥{fen2yuan(s?.total_unreturned)}
-                      </span>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
+          </Card>
         </TabsContent>
 
-        <TabsContent value="participants">
+        <TabsContent value="participants" className="mt-4">
           <ParticipantsView />
         </TabsContent>
       </Tabs>
@@ -240,7 +286,7 @@ function NewBatchDialog({ open, onOpenChange, onCreated }: {
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setError("") }}>
       <DialogContent className="sm:max-w-md">
         <div className="flex items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-md shadow-blue-500/20">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Boxes className="size-5" />
           </span>
           <DialogHeader className="pt-1.5">
@@ -310,9 +356,7 @@ function LedgerTxDialog({ open, onOpenChange, tone, title, description, onCreate
 
   const income = tone === "income"
   const Icon = income ? ArrowUpFromLine : ArrowDownToLine
-  const iconClass = income
-    ? "from-emerald-500 to-teal-400 shadow-emerald-500/20"
-    : "from-rose-500 to-red-400 shadow-rose-500/20"
+  const iconClass = income ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
 
   function reset() {
     setAmount("")
@@ -352,7 +396,7 @@ function LedgerTxDialog({ open, onOpenChange, tone, title, description, onCreate
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset() }}>
       <DialogContent className="sm:max-w-md">
         <div className="flex items-start gap-3">
-          <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", iconClass)}>
+          <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", iconClass)}>
             <Icon className="size-5" />
           </span>
           <DialogHeader className="pt-1.5">
@@ -450,7 +494,7 @@ function LedgerDialog({ open, onOpenChange, ledger }: {
                 return (
                   <div key={t.id} className="rounded-lg border p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={income ? "secondary" : "destructive"} className={income ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50" : ""}>
+                      <Badge variant="outline" className={income ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive"}>
                         {income ? "收入 +" : "支出 −"}{fen2yuan(t.amount)}
                       </Badge>
                       <span className="text-xs text-muted-foreground">{CATEGORY_LABEL[t.category] ?? t.category}</span>

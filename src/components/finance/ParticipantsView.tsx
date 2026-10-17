@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react"
 import { Loader2, UserRound } from "lucide-react"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -63,36 +62,62 @@ export function ParticipantsView() {
 
   return (
     <div className="space-y-3">
-      {list.length === 0 ? (
-        <Card className="p-10 text-center text-sm text-muted-foreground">
-          暂无参与同学记录,在批次中添加明细后会自动出现在这里
-        </Card>
-      ) : (
-        list.map((p) => (
-          <Card key={p.id} className="cursor-pointer p-4 transition-colors hover:bg-muted/40" onClick={() => void openBills(p)}>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <UserRound className="size-4.5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-xs text-muted-foreground tabular-nums">{p.student_no}</span>
-                  <Badge variant="secondary">参与 {p.total_items} 次</Badge>
-                </div>
-                <div className="mt-0.5 flex flex-wrap gap-x-5 text-xs text-muted-foreground">
-                  <span>累计应交 <b className="tabular-nums text-foreground">¥{fen2yuan(p.total_should_return)}</b></span>
-                  <span>累计已交 <b className="tabular-nums text-emerald-600">¥{fen2yuan(p.total_returned)}</b></span>
-                  <span className={cn("tabular-nums", p.total_should_return - p.total_returned > 0 && "text-destructive")}>
-                    未交 ¥{fen2yuan(p.total_should_return - p.total_returned)}
-                  </span>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">点击查看历史账单 →</span>
-            </div>
-          </Card>
-        ))
-      )}
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center gap-3 border-b px-5 py-4">
+          <div>
+            <h3 className="font-medium">参与同学（{list.length}）</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">按人汇总跨批次金额，点击任意一行查看历史账单</p>
+          </div>
+        </div>
+        {list.length === 0 ? (
+          <p className="px-5 py-14 text-center text-sm text-muted-foreground">
+            暂无参与同学记录，在批次中添加明细后会自动出现在这里
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="px-5 py-2 font-medium">姓名</th>
+                  <th className="px-3 py-2 font-medium">学号</th>
+                  <th className="px-3 py-2 text-right font-medium">参与次数</th>
+                  <th className="px-3 py-2 text-right font-medium">累计应交</th>
+                  <th className="px-3 py-2 text-right font-medium">累计已交</th>
+                  <th className="px-5 py-2 text-right font-medium">未交</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((p) => {
+                  const un = p.total_should_return - p.total_returned
+                  return (
+                    <tr
+                      key={p.id}
+                      className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                      onClick={() => void openBills(p)}
+                    >
+                      <td className="px-5 py-2.5">
+                        <span className="flex items-center gap-2 font-medium">
+                          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <UserRound className="size-3.5" />
+                          </span>
+                          {p.name}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{p.student_no}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{p.total_items}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{fen2yuan(p.total_should_return)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{fen2yuan(p.total_returned)}</td>
+                      <td className={cn("px-5 py-2.5 text-right tabular-nums", un > 0 && "font-medium text-destructive")}>
+                        {fen2yuan(un)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <Dialog open={!!current} onOpenChange={(o) => !o && setCurrent(null)}>
         <DialogContent className="sm:max-w-2xl">

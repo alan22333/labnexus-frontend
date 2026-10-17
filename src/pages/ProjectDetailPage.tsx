@@ -31,10 +31,10 @@ import type { Milestone, ProjectDetail, Task, TaskStatus, User } from "@/lib/typ
 import { cn } from "@/lib/utils"
 
 const COLUMNS: { status: TaskStatus; label: string; dot: string; empty: string }[] = [
-  { status: "todo", label: "待办", dot: "bg-slate-400", empty: "还没有待办任务" },
-  { status: "in_progress", label: "进行中", dot: "bg-blue-500", empty: "没有进行中的任务" },
-  { status: "blocked", label: "受阻", dot: "bg-amber-500", empty: "没有受阻任务" },
-  { status: "done", label: "完成", dot: "bg-emerald-500", empty: "还没有完成任务" },
+  { status: "todo", label: "待办", dot: "bg-muted-foreground/40", empty: "还没有待办任务" },
+  { status: "in_progress", label: "进行中", dot: "bg-primary", empty: "没有进行中的任务" },
+  { status: "blocked", label: "受阻", dot: "bg-warning", empty: "没有受阻任务" },
+  { status: "done", label: "完成", dot: "bg-success", empty: "还没有完成任务" },
 ]
 
 const TRANSITIONS: Record<TaskStatus, { to: TaskStatus; label: string; icon: typeof Play }[]> = {
@@ -51,10 +51,10 @@ const TRANSITIONS: Record<TaskStatus, { to: TaskStatus; label: string; icon: typ
 }
 
 const STATUS_BADGE: Record<TaskStatus, string> = {
-  todo: "bg-slate-100 text-slate-700",
-  in_progress: "bg-blue-50 text-blue-600",
-  blocked: "bg-amber-50 text-amber-600",
-  done: "bg-emerald-50 text-emerald-600",
+  todo: "bg-muted text-muted-foreground",
+  in_progress: "bg-primary/10 text-primary",
+  blocked: "bg-warning/10 text-warning",
+  done: "bg-success/10 text-success",
 }
 
 export function ProjectDetailPage() {
@@ -224,7 +224,7 @@ export function ProjectDetailPage() {
         <div className="flex flex-wrap items-center gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight">{project.name}</h1>
+              <h1 className="text-lg font-semibold tracking-tight">{project.name}</h1>
               <Badge variant={project.status === "done" ? "secondary" : "default"}>
                 {project.status === "done" ? "已完成" : "进行中"}
               </Badge>
@@ -312,9 +312,9 @@ export function ProjectDetailPage() {
                 {milestones.map((m) => (
                   <li key={m.id} className="flex items-center gap-2 text-sm">
                     {m.completed_at ? (
-                      <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+                      <CheckCircle2 className="size-4 shrink-0 text-success" />
                     ) : (
-                      <span className="size-4 shrink-0 rounded-full border-2 border-slate-300" />
+                      <span className="size-4 shrink-0 rounded-full border-2 border-input" />
                     )}
                     <span className={cn(m.completed_at && "text-muted-foreground line-through")}>{m.name}</span>
                     {m.due_date && (

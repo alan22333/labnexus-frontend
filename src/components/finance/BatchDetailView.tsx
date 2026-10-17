@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import {
-  ArrowLeft, CheckCircle2, Download, FileSpreadsheet, HandCoins, History, Loader2, Pencil, Plus,
-  Trash2, Undo2, UserPlus,
+  AlertTriangle, ArrowLeft, CheckCircle2, Download, FileSpreadsheet, HandCoins, History, Loader2,
+  MoreHorizontal, Pencil, Plus, Trash2, Undo2, UserPlus,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -15,8 +15,12 @@ import { Card } from "@/components/ui/card"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { financeApi, friendlyFinanceError } from "@/lib/api"
@@ -78,15 +82,6 @@ async function normalizeImportFile(file: File): Promise<File> {
   XLSX.utils.book_append_sheet(outWb, outWs, "Sheet1")
   const buf = XLSX.write(outWb, { type: "array", bookType: "xlsx" })
   return new File([buf], file.name, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
-}
-
-function SummaryCell({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={cn("text-base font-semibold tabular-nums", danger && "text-destructive")}>¥{value}</span>
-    </div>
-  )
 }
 
 export function BatchDetailView({ batchId, onBack, onChanged }: {
@@ -237,60 +232,113 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
   const items = detail.items ?? []
   const unreturned = items.filter((i) => i.unreturned > 0)
   const s = detail.summary ?? { item_count: 0, total_payroll: 0, total_should_return: 0, total_returned: 0, total_unreturned: 0 }
+  const returnPct = s.total_should_return > 0
+    ? Math.min(100, Math.round((s.total_returned / s.total_should_return) * 100))
+    : 0
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onBack}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
           <ArrowLeft /> 返回
         </Button>
-        <h2 className="mr-2 flex items-center gap-2 text-lg font-bold">
-          📦 {detail.name}
-          <Badge variant={active ? "secondary" : "outline"}>{active ? "进行中" : "已完成"}</Badge>
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          {detail.name}
+          <Badge variant={active ? "default" : "outline"}>{active ? "进行中" : "已完成"}</Badge>
         </h2>
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button size="sm" disabled={!active} onClick={() => fileRef.current?.click()}>
+            <FileSpreadsheet /> 导入 Excel
+          </Button>
           <Button variant="outline" size="sm" disabled={!active} onClick={() => setAddOpen(true)}>
             <Plus /> 手动加明细
           </Button>
-          <Button variant="outline" size="sm" disabled={!active} onClick={() => fileRef.current?.click()}>
-            <FileSpreadsheet /> 导入 Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={downloadTemplate}>
-            <Download /> 下载模板
-          </Button>
-          {active && (
-            <Button size="sm" onClick={() => setCompleteOpen(true)}>
-              <CheckCircle2 /> 批次完成
-            </Button>
-          )}
-          {active && (
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 /> 删除
-            </Button>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon-sm" aria-label="更多操作">
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={downloadTemplate}>
+                <Download /> 下载导入模板
+              </DropdownMenuItem>
+              {active && (
+                <DropdownMenuItem onClick={() => setCompleteOpen(true)}>
+                  <CheckCircle2 /> 标记批次完成
+                </DropdownMenuItem>
+              )}
+              {active && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                    <Trash2 /> 删除批次
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={onPickFile} />
       </div>
 
-      <Card className="p-4">
-        <div className="flex flex-wrap gap-x-8 gap-y-3">
-          <SummaryCell label="明细" value={String(s.item_count)} />
-          <SummaryCell label="发放总额" value={fen2yuan(s.total_payroll)} />
-          <SummaryCell label="应交" value={fen2yuan(s.total_should_return)} />
-          <SummaryCell label="已交" value={fen2yuan(s.total_returned)} />
-          <SummaryCell label="未交" value={fen2yuan(s.total_unreturned)} danger={s.total_unreturned > 0} />
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center gap-x-10 gap-y-5 px-5 py-4">
+          <div className="shrink-0">
+            <p className="text-xs text-muted-foreground">未交金额</p>
+            <p className={cn(
+              "mt-1.5 text-2xl leading-none font-semibold tracking-tight tabular-nums",
+              s.total_unreturned > 0 ? "text-destructive" : "text-foreground"
+            )}>
+              ¥{fen2yuan(s.total_unreturned)}
+            </p>
+          </div>
+          <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+            <div>
+              <dt className="text-xs text-muted-foreground">发放总额</dt>
+              <dd className="mt-1 font-medium tabular-nums">¥{fen2yuan(s.total_payroll)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">应交</dt>
+              <dd className="mt-1 font-medium tabular-nums">¥{fen2yuan(s.total_should_return)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">已交</dt>
+              <dd className="mt-1 font-medium tabular-nums">¥{fen2yuan(s.total_returned)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">明细</dt>
+              <dd className="mt-1 font-medium tabular-nums">{s.item_count}</dd>
+            </div>
+          </dl>
+          <div className="ml-auto w-full max-w-64">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>回收进度</span>
+              <span className="tabular-nums">{returnPct}%</span>
+            </div>
+            <Progress value={returnPct} className="mt-2 h-1.5" />
+            <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+              ¥{fen2yuan(s.total_returned)} / ¥{fen2yuan(s.total_should_return)}
+            </p>
+          </div>
         </div>
       </Card>
 
       {unreturned.length > 0 && (
-        <Card className="border-destructive/40 p-4">
-          <h4 className="mb-2 font-medium text-destructive">⏰ 未交名单（{unreturned.length}）</h4>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <Card className="border-destructive/30 bg-destructive/[0.03] p-0">
+          <div className="flex items-center gap-2 border-b border-destructive/20 px-5 py-3">
+            <AlertTriangle className="size-4 text-destructive" />
+            <h4 className="text-sm font-medium text-destructive">未交名单（{unreturned.length}）</h4>
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+              合计 ¥{fen2yuan(s.total_unreturned)}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-x-7 gap-y-2 px-5 py-3 text-sm">
             {unreturned.map((i) => (
               <div key={i.id} className="flex items-center gap-2">
                 <span className="font-medium">{i.participant.name}</span>
                 <span className="tabular-nums text-destructive">欠 ¥{fen2yuan(i.unreturned)}</span>
-                {i.note && <span className="text-xs text-muted-foreground">备注:{i.note}</span>}
+                {i.note && <span className="text-xs text-muted-foreground">备注：{i.note}</span>}
               </div>
             ))}
           </div>
@@ -298,8 +346,8 @@ export function BatchDetailView({ batchId, onBack, onChanged }: {
       )}
 
       <Card className="p-0">
-        <div className="flex items-center justify-between px-4 pt-4">
-          <h4 className="font-medium">明细（{items.length}）</h4>
+        <div className="flex flex-wrap items-center gap-2 border-b px-5 py-3">
+          <h4 className="text-sm font-medium">明细（{items.length}）</h4>
           {active && unreturned.length > 0 && (
             <span className="text-xs text-muted-foreground">点击「收款」登记上交，资金池自动入账</span>
           )}
@@ -552,7 +600,7 @@ function ItemDialog({ open, item, onOpenChange, batchId, onSaved }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <div className="flex items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-md shadow-blue-500/20">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             {editing ? <Pencil className="size-5" /> : <UserPlus className="size-5" />}
           </span>
           <DialogHeader className="pt-1.5">
@@ -564,7 +612,7 @@ function ItemDialog({ open, item, onOpenChange, batchId, onSaved }: {
         </div>
 
         {locked && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
             该明细已有上交记录，金额已被锁定，仅可修改日期与备注；如需改金额请先在上交记录里撤销上交。
           </p>
         )}

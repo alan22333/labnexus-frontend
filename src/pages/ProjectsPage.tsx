@@ -71,8 +71,8 @@ export function ProjectsPage() {
     <div>
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">项目</h1>
-          <p className="text-sm text-muted-foreground">任务看板 · 里程碑 · 进度监督</p>
+          <h1 className="text-lg font-semibold tracking-tight">项目管理</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">任务看板 · 里程碑 · 进度监督</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()}>
@@ -92,8 +92,10 @@ export function ProjectsPage() {
         </div>
       ) : projects.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-background py-20 text-center">
-          <p className="text-3xl">🗂️</p>
-          <p className="mt-2 text-sm text-muted-foreground">暂无项目,创建一个开始推进吧</p>
+          <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <FolderKanban className="size-5" />
+          </span>
+          <p className="mt-3 text-sm text-muted-foreground">暂无项目,创建一个开始推进吧</p>
           <Button className="mt-4" variant="outline" onClick={() => setCreateOpen(true)}>
             新建项目
           </Button>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react"
 import {
   Copy, Loader2, Pencil, Plus, RefreshCw, Search, Settings, ShieldCheck, Ticket, Trash2, Users,
 } from "lucide-react"
@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { Avatar } from "@/components/common/Avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -76,16 +76,14 @@ export function AdminPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <Settings className="size-5 text-primary" /> 管理后台
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">成员、邀请码与任务类型维护</p>
+          <h1 className="text-lg font-semibold tracking-tight">后台管理</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">维护课题组成员、注册邀请码与任务类型字典</p>
         </div>
-        <Badge variant="secondary" className="mb-0.5">
-          <ShieldCheck /> 仅管理员
+        <Badge variant="outline" className="mt-0.5 gap-1.5 px-2.5 py-1">
+          <ShieldCheck className="size-3.5" /> 仅管理员可见
         </Badge>
       </div>
 
@@ -95,13 +93,68 @@ export function AdminPage() {
           <TabsTrigger value="invites"><Ticket /> 邀请码</TabsTrigger>
           <TabsTrigger value="task-types"><Settings /> 任务类型</TabsTrigger>
         </TabsList>
-        <TabsContent value="users"><MembersPanel /></TabsContent>
-        <TabsContent value="invites"><InvitesPanel /></TabsContent>
-        <TabsContent value="task-types"><TaskTypesPanel /></TabsContent>
+        <TabsContent value="users" className="mt-4"><MembersPanel /></TabsContent>
+        <TabsContent value="invites" className="mt-4"><InvitesPanel /></TabsContent>
+        <TabsContent value="task-types" className="mt-4"><TaskTypesPanel /></TabsContent>
       </Tabs>
     </div>
   )
 }
+
+/* ---------- 通用壳 ---------- */
+
+/** 管理面板:统一「标题 + 说明 + 操作区」的头部与全宽内容区 */
+function Panel({
+  title, description, actions, children,
+}: {
+  title: string
+  description: string
+  actions?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl bg-card shadow-card ring-1 ring-foreground/[0.07]">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        </div>
+        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      </header>
+      {children}
+    </section>
+  )
+}
+
+function Th({ children, className }: { children?: ReactNode; className?: string }) {
+  return (
+    <th className={`px-5 py-2.5 text-left text-xs font-medium text-muted-foreground ${className ?? ""}`}>
+      {children}
+    </th>
+  )
+}
+
+function emptyRow(colSpan: number, message: string) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-5 py-12 text-center text-sm text-muted-foreground">
+        {message}
+      </td>
+    </tr>
+  )
+}
+
+function skeletonRows(count: number) {
+  return (
+    <div className="space-y-2 p-5">
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="h-11 rounded-lg" />
+      ))}
+    </div>
+  )
+}
+
+/* ---------- 成员管理 ---------- */
 
 function MembersPanel() {
   const { user: currentUser } = useAuth()
@@ -141,73 +194,111 @@ function MembersPanel() {
     }
   }
 
+  const counts = ROLE_OPTIONS.map((role) => ({
+    role,
+    n: users.filter((u) => u.role === role).length,
+  }))
+
   return (
-    <Card>
-      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>成员管理</CardTitle>
-          <CardDescription>调整角色后即时生效；系统会阻止降级自己或最后一名管理员。</CardDescription>
-        </div>
-        <div className="flex items-center gap-2">
+    <Panel
+      title={`成员管理（${users.length}）`}
+      description="调整角色后即时生效；系统会阻止降级自己或最后一名管理员。"
+      actions={
+        <>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="搜索用户名 / 昵称"
-              className="w-56 pl-8"
+              className="h-8 w-52 bg-background pl-8"
             />
           </div>
-          <Button variant="outline" size="icon" onClick={() => void load()} disabled={loading} title="刷新">
+          <Button variant="outline" size="icon-sm" onClick={() => void load()} disabled={loading} title="刷新">
             {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
           </Button>
+        </>
+      }
+    >
+      {!loading && users.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/30 px-5 py-2 text-xs text-muted-foreground">
+          {counts.map(({ role, n }) => (
+            <span key={role}>
+              {ROLE_LABEL[role]} <b className="font-medium text-foreground tabular-nums">{n}</b>
+            </span>
+          ))}
         </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
-          </div>
-        ) : users.length === 0 ? (
-          <EmptyState message="没有找到成员" />
-        ) : (
-          <div className="space-y-2">
-            {users.map((u) => {
-              const isSelf = u.id === currentUser?.id
-              return (
-                <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-lg border bg-background p-3">
-                  <Avatar name={u.display_name} id={u.id} src={u.avatar_url} className="size-9" />
-                  <div className="min-w-40 flex-1">
-                    <p className="font-medium">{u.display_name}</p>
-                    <p className="text-xs text-muted-foreground">@{u.username} · 注册于 {timeAgo(u.created_at)}</p>
-                  </div>
-                  {isSelf && <Badge variant="outline">当前账号</Badge>}
-                  <Select
-                    value={u.role}
-                    onValueChange={(value) => void changeRole(u, value as Role)}
-                    disabled={isSelf || busyID === u.id}
-                  >
-                    <SelectTrigger className="w-32" title={isSelf ? "不能修改自己的角色" : undefined}>
-                      {busyID === u.id ? <Loader2 className="animate-spin" /> : <SelectValue />}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_OPTIONS.map((role) => (
-                        <SelectItem key={role} value={role}>{ROLE_LABEL[role]}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      )}
+
+      {loading ? (
+        skeletonRows(5)
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                <Th>成员</Th>
+                <Th className="hidden sm:table-cell">注册时间</Th>
+                <Th>角色</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0
+                ? emptyRow(3, "没有找到成员")
+                : users.map((u) => {
+                    const isSelf = u.id === currentUser?.id
+                    return (
+                      <tr key={u.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-5 py-2.5">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={u.display_name} id={u.id} src={u.avatar_url} className="size-8" />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate font-medium">{u.display_name}</span>
+                                {isSelf && <Badge variant="outline">当前账号</Badge>}
+                              </div>
+                              <span className="block truncate text-xs text-muted-foreground">@{u.username}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="hidden px-5 py-2.5 text-xs text-muted-foreground sm:table-cell">
+                          {timeAgo(u.created_at)}
+                        </td>
+                        <td className="px-5 py-2.5">
+                          <Select
+                            value={u.role}
+                            onValueChange={(value) => void changeRole(u, value as Role)}
+                            disabled={isSelf || busyID === u.id}
+                          >
+                            <SelectTrigger
+                              className="h-8 w-28"
+                              title={isSelf ? "不能修改自己的角色" : undefined}
+                            >
+                              {busyID === u.id ? <Loader2 className="animate-spin" /> : <SelectValue />}
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLE_OPTIONS.map((role) => (
+                                <SelectItem key={role} value={role}>{ROLE_LABEL[role]}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                      </tr>
+                    )
+                  })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   )
 }
 
+/* ---------- 邀请码管理 ---------- */
+
 function InvitesPanel() {
   const [invites, setInvites] = useState<Invite[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [customCode, setCustomCode] = useState("")
@@ -218,14 +309,23 @@ function InvitesPanel() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await adminApi.invites()
-      setInvites(data.invites ?? [])
+      const [inviteData, userData] = await Promise.all([adminApi.invites(), adminApi.users()])
+      setInvites(inviteData.invites ?? [])
+      setUsers(userData.users ?? [])
     } catch (err) {
       toast.error(friendlyAdminError(err))
     } finally {
       setLoading(false)
     }
   }, [])
+
+  const userName = useCallback(
+    (id: string | null | undefined) => {
+      if (!id) return "—"
+      return users.find((u) => u.id === id)?.display_name ?? shortID(id)
+    },
+    [users],
+  )
 
   useEffect(() => {
     void load()
@@ -271,63 +371,95 @@ function InvitesPanel() {
     }
   }
 
+  const unused = invites.filter((i) => !i.used_by).length
+
   return (
     <>
-      <Card>
-        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>邀请码管理</CardTitle>
-            <CardDescription>自动或自定义生成，未使用的码可直接复制注册链接。</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />} 刷新
+      <Panel
+        title={`邀请码管理（${invites.length}）`}
+        description="注册需要邀请码。未使用的码可直接复制注册链接发给新成员。"
+        actions={
+          <>
+            <Button variant="outline" size="icon-sm" onClick={() => void load()} disabled={loading} title="刷新">
+              {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             </Button>
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus /> 生成邀请码
             </Button>
+          </>
+        }
+      >
+        {!loading && invites.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/30 px-5 py-2 text-xs text-muted-foreground">
+            <span>未使用 <b className="font-medium text-foreground tabular-nums">{unused}</b></span>
+            <span>已使用 <b className="font-medium text-foreground tabular-nums">{invites.length - unused}</b></span>
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}
-            </div>
-          ) : invites.length === 0 ? (
-            <EmptyState message="暂无邀请码" />
-          ) : (
-            <div className="space-y-2">
-              {invites.map((invite) => {
-                const used = Boolean(invite.used_by)
-                const createdAgo = timeAgo(invite.created_at)
-                return (
-                  <div key={invite.id} className="flex flex-wrap items-center gap-3 rounded-lg border bg-background p-3">
-                    <div className="min-w-52 flex-1">
-                      <div className="flex items-center gap-2">
-                        <code className="rounded bg-muted px-2 py-1 text-sm font-semibold tracking-wide">{invite.code}</code>
-                        <Badge variant={used ? "secondary" : "default"}>{used ? "已使用" : "未使用"}</Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        创建人 {shortID(invite.created_by)}
-                        {createdAgo && ` · ${createdAgo}`}
-                        {used && ` · 使用者 ${shortID(invite.used_by)}${invite.used_at ? ` · ${timeAgo(invite.used_at)}` : ""}`}
-                      </p>
-                    </div>
-                    {!used && (
-                      <Button variant="outline" size="sm" onClick={() => void copyInvite(invite.code)}>
-                        <Copy /> 复制链接
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(invite)} title="撤销">
-                      <Trash2 />
-                    </Button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+
+        {loading ? (
+          skeletonRows(3)
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <Th>邀请码</Th>
+                  <Th>状态</Th>
+                  <Th className="hidden sm:table-cell">创建 / 使用</Th>
+                  <Th className="text-right">操作</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {invites.length === 0
+                  ? emptyRow(4, "暂无邀请码，点右上角「生成邀请码」创建")
+                  : invites.map((invite) => {
+                      const used = Boolean(invite.used_by)
+                      const createdAgo = timeAgo(invite.created_at)
+                      return (
+                        <tr key={invite.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="px-5 py-3">
+                            <code className="rounded-md bg-muted px-2 py-1 text-[13px] font-semibold tracking-wide">
+                              {invite.code}
+                            </code>
+                          </td>
+                          <td className="px-5 py-3">
+                            <Badge variant={used ? "secondary" : "default"}>{used ? "已使用" : "未使用"}</Badge>
+                          </td>
+                          <td className="hidden px-5 py-3 text-xs text-muted-foreground sm:table-cell">
+                            <div>创建人 {userName(invite.created_by)}{createdAgo && ` · ${createdAgo}`}</div>
+                            {used && (
+                              <div className="mt-0.5">
+                                使用者 {userName(invite.used_by)}
+                                {invite.used_at && ` · ${timeAgo(invite.used_at)}`}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-5 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              {!used && (
+                                <Button variant="outline" size="sm" onClick={() => void copyInvite(invite.code)}>
+                                  <Copy /> 复制链接
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeleteTarget(invite)}
+                                title="撤销邀请码"
+                              >
+                                <Trash2 />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md">
@@ -376,6 +508,8 @@ function InvitesPanel() {
     </>
   )
 }
+
+/* ---------- 任务类型管理 ---------- */
 
 type TaskTypeForm = {
   name: string
@@ -471,74 +605,131 @@ function TaskTypesPanel() {
 
   return (
     <>
-      <Card>
-        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>任务类型</CardTitle>
-            <CardDescription>停用后不再出现在新任务下拉；删除后已有任务会回退为未分类。</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />} 刷新
+      <Panel
+        title={`任务类型（${types.length}）`}
+        description="停用后不再出现在新建任务下拉；删除后已有任务会回退为未分类。"
+        actions={
+          <>
+            <Button variant="outline" size="icon-sm" onClick={() => void load()} disabled={loading} title="刷新">
+              {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             </Button>
-            <Button size="sm" onClick={openCreate}><Plus /> 新建类型</Button>
+            <Button size="sm" onClick={openCreate}>
+              <Plus /> 新建类型
+            </Button>
+          </>
+        }
+      >
+        {loading ? (
+          skeletonRows(4)
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <Th>名称</Th>
+                  <Th>状态</Th>
+                  <Th className="hidden text-center sm:table-cell">排序</Th>
+                  <Th className="text-right">操作</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {types.length === 0
+                  ? emptyRow(4, "暂无任务类型")
+                  : types.map((item) => (
+                      <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className="size-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: item.color }}
+                              aria-hidden
+                            />
+                            <span className="font-medium">{item.name}</span>
+                            {item.builtin && <Badge variant="outline">内置</Badge>}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <Badge variant={item.active ? "secondary" : "destructive"}>
+                            {item.active ? "启用" : "停用"}
+                          </Badge>
+                        </td>
+                        <td className="hidden px-5 py-3 text-center text-xs text-muted-foreground tabular-nums sm:table-cell">
+                          {item.sort}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon-sm" onClick={() => openEdit(item)} title="编辑">
+                              <Pencil />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteTarget(item)}
+                              title="删除"
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
-            </div>
-          ) : types.length === 0 ? (
-            <EmptyState message="暂无任务类型" />
-          ) : (
-            <div className="space-y-2">
-              {types.map((item) => (
-                <div key={item.id} className="flex flex-wrap items-center gap-3 rounded-lg border bg-background p-3">
-                  <span className="size-3 rounded-full ring-2 ring-background" style={{ backgroundColor: item.color }} />
-                  <div className="min-w-44 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{item.name}</span>
-                      {item.builtin && <Badge variant="outline">内置</Badge>}
-                      <Badge variant={item.active ? "secondary" : "destructive"}>{item.active ? "启用" : "停用"}</Badge>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">颜色 {item.color} · 排序 {item.sort}</p>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(item)} title="编辑"><Pencil /></Button>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)} title="删除"><Trash2 /></Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </Panel>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? "编辑任务类型" : "新建任务类型"}</DialogTitle>
-            <DialogDescription>名称需唯一；颜色用于任务卡片和看板标签。</DialogDescription>
+            <DialogDescription>名称需唯一；颜色仅用于任务卡片与看板标签的区分。</DialogDescription>
           </DialogHeader>
           <form onSubmit={saveTaskType} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="type-name">名称</Label>
-              <Input id="type-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如: 实验" maxLength={40} autoFocus />
+              <Input
+                id="type-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="如: 实验"
+                maxLength={40}
+                autoFocus
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="type-color">颜色</Label>
+              <Label htmlFor="type-color">标识色</Label>
               <div className="flex items-center gap-2">
-                <Input id="type-color" type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="h-9 w-14 cursor-pointer p-1" />
-                <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="#94a3b8" maxLength={7} />
+                <Input
+                  id="type-color"
+                  type="color"
+                  value={form.color}
+                  onChange={(e) => setForm({ ...form, color: e.target.value })}
+                  className="h-8 w-12 cursor-pointer p-1"
+                  aria-label="选择颜色"
+                />
+                <span className="text-xs text-muted-foreground">
+                  用于任务卡片左上角的分类色点
+                </span>
               </div>
             </div>
             {editing && (
               <div className="grid grid-cols-[1fr_auto] items-end gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="type-sort">排序</Label>
-                  <Input id="type-sort" type="number" value={form.sort} onChange={(e) => setForm({ ...form, sort: Number(e.target.value) || 0 })} />
+                  <Input
+                    id="type-sort"
+                    type="number"
+                    value={form.sort}
+                    onChange={(e) => setForm({ ...form, sort: Number(e.target.value) || 0 })}
+                  />
                 </div>
                 <Label className="mb-2 cursor-pointer">
-                  <Checkbox checked={form.active} onCheckedChange={(checked) => setForm({ ...form, active: checked === true })} />
+                  <Checkbox
+                    checked={form.active}
+                    onCheckedChange={(checked) => setForm({ ...form, active: checked === true })}
+                  />
                   启用
                 </Label>
               </div>
@@ -561,20 +752,16 @@ function TaskTypesPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={deleting} onClick={(e) => { e.preventDefault(); void deleteTaskType() }}>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={(e) => { e.preventDefault(); void deleteTaskType() }}
+            >
               {deleting && <Loader2 className="animate-spin" />} 删除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="rounded-lg border border-dashed py-14 text-center text-sm text-muted-foreground">
-      {message}
-    </div>
   )
 }

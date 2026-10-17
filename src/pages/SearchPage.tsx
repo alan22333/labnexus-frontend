@@ -45,7 +45,7 @@ export function SearchPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-5">
-        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
+        <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
           <Search className="size-5 text-primary" />
           搜索:「{q}」
         </h1>
@@ -70,7 +70,7 @@ export function SearchPage() {
       ) : (
         <div className="space-y-6">
           <ResultSection
-            icon={<FileText className="size-4 text-blue-500" />}
+            icon={<FileText className="size-4 text-primary" />}
             title="文档"
             count={docs.length}
             empty={docs.length === 0}
@@ -89,7 +89,7 @@ export function SearchPage() {
           </ResultSection>
 
           <ResultSection
-            icon={<Link2 className="size-4 text-emerald-500" />}
+            icon={<Link2 className="size-4 text-success" />}
             title="资源"
             count={ress.length}
             empty={ress.length === 0}
@@ -105,7 +105,7 @@ export function SearchPage() {
           </ResultSection>
 
           <ResultSection
-            icon={<ClipboardList className="size-4 text-amber-500" />}
+            icon={<ClipboardList className="size-4 text-warning" />}
             title="任务"
             count={tasks.length}
             empty={tasks.length === 0}
