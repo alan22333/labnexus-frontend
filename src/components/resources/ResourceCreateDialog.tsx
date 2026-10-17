@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Loader2, Upload } from "lucide-react"
+import { FileText, Link2, Loader2, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { TagPicker } from "@/components/documents/TagPicker"
@@ -100,8 +100,12 @@ export function ResourceCreateDialog({ open, onOpenChange, initialType = "link",
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="link">🔗 链接</SelectItem>
-                  <SelectItem value="file">📎 文件</SelectItem>
+                  <SelectItem value="link">
+                    <span className="flex items-center gap-2"><Link2 className="size-4 text-muted-foreground" />链接</span>
+                  </SelectItem>
+                  <SelectItem value="file">
+                    <span className="flex items-center gap-2"><FileText className="size-4 text-muted-foreground" />文件</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

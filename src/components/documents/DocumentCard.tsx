@@ -1,5 +1,6 @@
-import { useState } from "react"
-import { MessageCircle, Pencil, Pin, ThumbsUp } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
+import { BookOpenText, MessageCircle, Pencil, Pin, ThumbsUp } from "lucide-react"
 import { toast } from "sonner"
 
 import { Avatar } from "@/components/common/Avatar"
@@ -13,8 +14,8 @@ import type { Document, Folder } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 import { CommentsDialog } from "./CommentsDialog"
-import { DocumentDetailDialog } from "./DocumentDetailDialog"
 import { DocumentEditorDialog } from "./DocumentEditorDialog"
+import { RichContent } from "./RichContent"
 
 // 会话内点赞记录(用于按钮高亮)
 const sessionLiked = new Set<string>()
@@ -23,20 +24,24 @@ interface Props {
   doc: Document
   folders?: Folder[]
   onChanged?: () => void
-  detailOnClick?: boolean
 }
 
 /** 信息流帖子卡片 */
-export function DocumentCard({ doc, folders, onChanged, detailOnClick }: Props) {
+export function DocumentCard({ doc, folders, onChanged }: Props) {
   const { user } = useAuth()
   const [count, setCount] = useState(doc.reactions_count ?? 0)
+  const [commentCount, setCommentCount] = useState(doc.comments_count ?? 0)
   const [liked, setLiked] = useState(sessionLiked.has(doc.id))
   const [commentsOpen, setCommentsOpen] = useState(false)
-  const [detailId, setDetailId] = useState<string | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
 
   const isMine = user != null && doc.author_id === user.id
+
+  useEffect(() => {
+    setCount(doc.reactions_count ?? 0)
+    setCommentCount(doc.comments_count ?? 0)
+    setLiked(sessionLiked.has(doc.id))
+  }, [doc.id, doc.reactions_count, doc.comments_count])
 
   async function toggleLike() {
     const next = !liked
@@ -54,13 +59,8 @@ export function DocumentCard({ doc, folders, onChanged, detailOnClick }: Props) 
     }
   }
 
-  function openDetail() {
-    setDetailId(doc.id)
-    setDetailOpen(true)
-  }
-
   return (
-    <Card className="p-4 transition-shadow hover:shadow-md sm:p-5">
+    <Card className="group/card gap-0 border border-foreground/[0.07] bg-card p-5 shadow-card transition-colors hover:border-foreground/20">
       {/* 作者行 */}
       <div className="flex items-center gap-2.5">
         <Avatar name={doc.author?.display_name ?? "?"} id={doc.author?.id} />
@@ -68,7 +68,7 @@ export function DocumentCard({ doc, folders, onChanged, detailOnClick }: Props) 
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{doc.author?.display_name}</span>
             {doc.pinned && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
                 <Pin className="size-2.5" /> 置顶
               </span>
             )}
@@ -89,23 +89,26 @@ export function DocumentCard({ doc, folders, onChanged, detailOnClick }: Props) 
       </div>
 
       {/* 内容 */}
-      <button
-        type="button"
-        onClick={detailOnClick ? openDetail : undefined}
-        className="mt-3 block w-full text-left"
-      >
-        <h3 className="text-base leading-snug font-semibold tracking-tight">{doc.title}</h3>
+      <Link to={`/documents/${doc.id}`} className="mt-4 block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+        <h3 className="text-lg leading-snug font-semibold tracking-tight transition-colors group-hover/card:text-primary">
+          {doc.title}
+        </h3>
         {doc.content && (
-          <p className="mt-1.5 line-clamp-4 text-sm leading-6 text-muted-foreground whitespace-pre-wrap">
-            {doc.content}
-          </p>
+          <RichContent
+            content={doc.content}
+            className="mt-2"
+            textClassName="text-sm leading-6 text-muted-foreground"
+            imageClassName="max-h-72"
+            clampText
+            imageLink={false}
+          />
         )}
-      </button>
+      </Link>
 
-      <TagBadges tags={doc.tags} className="mt-3" />
+      <TagBadges tags={doc.tags} className="mt-4" />
 
       {/* 操作栏 */}
-      <div className="mt-3 flex items-center gap-1.5 border-t pt-3">
+      <div className="mt-4 flex items-center gap-1.5 border-t pt-3">
         <Button
           variant="ghost"
           size="sm"
@@ -117,24 +120,21 @@ export function DocumentCard({ doc, folders, onChanged, detailOnClick }: Props) 
         </Button>
         <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setCommentsOpen(true)}>
           <MessageCircle className="size-4" />
-          {doc.comments_count ?? 0}
+          {commentCount}
         </Button>
-        <div className="ml-auto">
-          <Button variant="ghost" size="sm" onClick={openDetail}>
-            查看
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" className="ml-auto" asChild>
+          <Link to={`/documents/${doc.id}`}>
+            <BookOpenText />
+            查看原文
+          </Link>
+        </Button>
       </div>
 
-      <CommentsDialog open={commentsOpen} onOpenChange={setCommentsOpen} document={doc} />
-      <DocumentDetailDialog
-        documentId={detailId}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onOpenComments={() => {
-          setDetailOpen(false)
-          setCommentsOpen(true)
-        }}
+      <CommentsDialog
+        open={commentsOpen}
+        onOpenChange={setCommentsOpen}
+        document={doc}
+        onCountChange={(delta) => setCommentCount((c) => Math.max(0, c + delta))}
       />
       <DocumentEditorDialog
         open={editOpen}
@@ -146,4 +146,3 @@ export function DocumentCard({ doc, folders, onChanged, detailOnClick }: Props) 
     </Card>
   )
 }
-

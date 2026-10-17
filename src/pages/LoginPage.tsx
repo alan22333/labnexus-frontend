@@ -78,24 +78,22 @@ export function LoginPage() {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-2">
       {/* ===== 左栏:品牌与视觉 ===== */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 p-10 text-white lg:flex xl:p-14">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-32 -right-24 size-[28rem] rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-40 -left-24 size-[26rem] rounded-full bg-sky-300/20 blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.07]"
-            style={{
-              backgroundImage:
-                "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
-              backgroundSize: "48px 48px",
-            }}
-          />
-        </div>
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-[oklch(0.235_0.035_262)] p-10 text-white lg:flex xl:p-14">
+        {/* 细网格纹理:稿纸/工作台气质,替代渐变光斑 */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+            backgroundSize: "36px 36px",
+          }}
+        />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-white/10" />
 
         <div className="relative">
           <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 shadow-lg backdrop-blur-sm">
-              <FlaskConical className="size-5.5 text-white" />
+            <span className="flex size-9 items-center justify-center rounded-md bg-white/10 ring-1 ring-white/15">
+              <FlaskConical className="size-4.5 text-white" />
             </span>
             <span className="text-lg font-bold tracking-tight">LabNexus</span>
           </div>
@@ -107,39 +105,39 @@ export function LoginPage() {
             <br />
             科研协作平台
           </h1>
-          <p className="mt-4 text-sm leading-6 text-blue-100/90 xl:text-base">
+          <p className="mt-4 text-sm leading-6 text-white/65 xl:text-base">
             科研朋友圈 · 知识库 · 进度监督
             <br />
             一个系统装下组内的文献、笔记、帖子与任务
           </p>
 
-          <div className="mt-10 space-y-5">
+          <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
             {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="flex items-start gap-4">
-                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm">
-                  <Icon className="size-4.5 text-white" />
+              <li key={title} className="flex items-start gap-4 py-4">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-white/10 text-white/90">
+                  <Icon className="size-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold">{title}</p>
-                  <p className="mt-0.5 text-xs leading-5 text-blue-100/80">{desc}</p>
+                  <p className="text-sm font-medium">{title}</p>
+                  <p className="mt-0.5 text-xs leading-5 text-white/60">{desc}</p>
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
 
-        <div className="relative flex items-center gap-2 text-xs text-blue-100/70">
+        <div className="relative flex items-center gap-2 text-xs text-white/50">
           <Users className="size-4" />
           10 人以内课题组 · 私有部署 · 邀请制加入
         </div>
       </aside>
 
       {/* ===== 右栏:登录/注册卡片 ===== */}
-      <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 px-4 py-10 sm:px-6">
+      <main className="app-shell-bg flex min-h-screen flex-col items-center justify-center px-4 py-10 sm:px-6">
         {/* 移动端品牌头(桌面隐藏) */}
         <div className="mb-8 flex flex-col items-center gap-3 lg:hidden">
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-sky-400 shadow-lg shadow-blue-500/25">
-            <FlaskConical className="size-7 text-white" />
+          <span className="flex size-12 items-center justify-center rounded-lg bg-primary">
+            <FlaskConical className="size-6 text-primary-foreground" />
           </span>
           <div className="text-center">
             <h1 className="text-2xl font-bold tracking-tight">LabNexus</h1>
@@ -147,7 +145,7 @@ export function LoginPage() {
           </div>
         </div>
 
-        <Card className="w-full max-w-md shadow-xl">
+        <Card className="w-full max-w-md shadow-raised">
           {/* 标题行 + 紧凑切换(显式 flex,避免重叠) */}
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-4">
