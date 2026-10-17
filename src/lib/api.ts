@@ -132,7 +132,8 @@ export const documentApi = {
     request<{ documents: Document[] }>(`/me/documents${buildQuery(q)}`),
   create: (body: DocumentPayload) =>
     request<{ document: Document }>("/me/documents", { method: "POST", body: JSON.stringify(body) }),
-  get: (id: string) => request<Document>(`/documents/${id}`),
+  get: (id: string) =>
+    request<{ document: Document }>(`/documents/${id}`).then((res) => res.document),
   update: (id: string, body: Partial<DocumentPayload>) =>
     request<{ document: Document }>(`/documents/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   remove: (id: string) => request<void>(`/documents/${id}`, { method: "DELETE" }),

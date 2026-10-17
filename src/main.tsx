@@ -12,7 +12,7 @@ import App from "./App.tsx"
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="labnexus-theme">
         <AuthProvider>
           <TooltipProvider>
             <App />

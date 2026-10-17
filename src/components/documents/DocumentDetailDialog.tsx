@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
+import { RichContent } from "@/components/documents/RichContent"
 import { documentApi } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import type { Document } from "@/lib/types"
@@ -54,9 +55,13 @@ export function DocumentDetailDialog({ documentId, open, onOpenChange, onOpenCom
               </DialogDescription>
             </DialogHeader>
             <TagBadges tags={doc.tags} />
-            <div className="max-h-[50vh] overflow-y-auto rounded-xl bg-muted/40 p-4 text-sm leading-7 whitespace-pre-wrap">
-              {doc.content || <span className="text-muted-foreground">(无正文)</span>}
-            </div>
+            <RichContent
+              content={doc.content}
+              className="max-h-[50vh] overflow-y-auto rounded-xl bg-muted/40 p-4"
+              textClassName="text-sm leading-7"
+              imageClassName="max-h-80"
+              emptyText="(无正文)"
+            />
             <div className="flex items-center gap-2 border-t pt-3">
               <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
                 <ThumbsUp className="size-4" /> {doc.reactions_count ?? 0}

@@ -52,9 +52,10 @@ export function CommentsDialog({ open, onOpenChange, document, onCountChange }: 
     if (!document || !content.trim()) return
     setSending(true)
     try {
-      await documentApi.addComment(document.id, { content: content.trim() })
+      const { comment } = await documentApi.addComment(document.id, { content: content.trim() })
+      // 直接用服务端返回的新评论更新列表,避免二次请求造成“发送后不显示”的错觉。
+      setComments((prev) => [...prev, comment])
       setContent("")
-      await load()
       onCountChange?.(1)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "评论失败")
@@ -64,11 +65,13 @@ export function CommentsDialog({ open, onOpenChange, document, onCountChange }: 
   }
 
   async function remove(c: Comment) {
+    setComments((prev) => prev.filter((item) => item.id !== c.id))
+    onCountChange?.(-1)
     try {
       await documentApi.deleteComment(c.id)
-      await load()
-      onCountChange?.(-1)
     } catch (err) {
+      setComments((prev) => [...prev, c].sort((a, b) => a.created_at.localeCompare(b.created_at)))
+      onCountChange?.(1)
       toast.error(err instanceof Error ? err.message : "删除失败")
     }
   }

@@ -13,10 +13,10 @@ const SpacePage = page(() => import("@/pages/SpacePage"), "SpacePage")
 const ResourcesPage = page(() => import("@/pages/ResourcesPage"), "ResourcesPage")
 const ProjectsPage = page(() => import("@/pages/ProjectsPage"), "ProjectsPage")
 const ProjectDetailPage = page(() => import("@/pages/ProjectDetailPage"), "ProjectDetailPage")
-const TagsPage = page(() => import("@/pages/TagsPage"), "TagsPage")
 const SearchPage = page(() => import("@/pages/SearchPage"), "SearchPage")
 const FinancePage = page(() => import("@/pages/FinancePage"), "FinancePage")
 const AdminPage = page(() => import("@/pages/AdminPage"), "AdminPage")
+const DocumentReaderPage = page(() => import("@/pages/DocumentReaderPage"), "DocumentReaderPage")
 
 function PageLoader() {
   return (
@@ -38,10 +38,10 @@ function App() {
           <Route path="/resources" element={<ResourcesPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
-          <Route path="/tags" element={<TagsPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/finance" element={<FinancePage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/documents/:id" element={<DocumentReaderPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

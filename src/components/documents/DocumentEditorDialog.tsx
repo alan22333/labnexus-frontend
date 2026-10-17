@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { ImagePlus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { TagPicker } from "@/components/documents/TagPicker"
@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { documentApi } from "@/lib/api"
+import { documentApi, resourceApi } from "@/lib/api"
 import type { Document, Folder, Visibility } from "@/lib/types"
 
 interface Props {
@@ -33,7 +33,10 @@ export function DocumentEditorDialog({ open, onOpenChange, document, defaultFold
   const [folderId, setFolderId] = useState<string>("")
   const [tagIds, setTagIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState("")
+  const contentRef = useRef<HTMLTextAreaElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -44,6 +47,31 @@ export function DocumentEditorDialog({ open, onOpenChange, document, defaultFold
     setTagIds(document?.tags?.map((t) => t.id) ?? [])
     setError("")
   }, [open, document, defaultFolderId])
+
+  async function onPickImage(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    setUploading(true)
+    try {
+      const { resource } = await resourceApi.upload({ file, title: file.name })
+      const url = resource.preview?.url || resource.download_url || ""
+      if (!url) throw new Error("图片上传成功但未取得访问地址")
+      const marker = `![${resource.title || file.name}](${url})`
+      const el = contentRef.current
+      const pos = el?.selectionStart ?? content.length
+      const before = content.slice(0, pos)
+      const after = content.slice(pos)
+      const lead = before && !before.endsWith("\n") ? "\n" : ""
+      const tail = after && !after.startsWith("\n") ? "\n" : ""
+      setContent(`${before}${lead}${marker}${tail}${after}`)
+      toast.success("图片已插入正文")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "图片上传失败")
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function save() {
     if (!title.trim()) {
@@ -144,13 +172,34 @@ export function DocumentEditorDialog({ open, onOpenChange, document, defaultFold
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="doc-content">正文</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="doc-content">正文</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? <Loader2 className="animate-spin" /> : <ImagePlus className="size-3.5" />}
+                {uploading ? "上传中…" : "插入图片"}
+              </Button>
+            </div>
             <Textarea
               id="doc-content"
+              ref={contentRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="支持 Markdown 语法,以纯文本展示…"
+              placeholder="支持 Markdown 语法;可用上方「插入图片」按钮添加配图"
               className="min-h-44 font-mono text-sm"
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPickImage}
             />
           </div>
 
