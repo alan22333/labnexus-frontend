@@ -47,7 +47,7 @@ function buildQuery(q?: Query): string {
 
 let refreshing: Promise<string> | null = null
 
-async function refreshToken(): Promise<string> {
+export async function refreshToken(): Promise<string> {
   if (!refreshing) {
     refreshing = (async () => {
       const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" })

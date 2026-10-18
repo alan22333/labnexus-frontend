@@ -17,6 +17,9 @@ const SearchPage = page(() => import("@/pages/SearchPage"), "SearchPage")
 const FinancePage = page(() => import("@/pages/FinancePage"), "FinancePage")
 const AdminPage = page(() => import("@/pages/AdminPage"), "AdminPage")
 const DocumentReaderPage = page(() => import("@/pages/DocumentReaderPage"), "DocumentReaderPage")
+const ScoutOverviewPage = page(() => import("@/pages/ScoutOverviewPage"), "ScoutOverviewPage")
+const ScoutConnectionsPage = page(() => import("@/pages/ScoutConnectionsPage"), "ScoutConnectionsPage")
+const ScoutResearchPage = page(() => import("@/pages/ScoutResearchPage"), "ScoutResearchPage")
 
 function PageLoader() {
   return (
@@ -42,6 +45,9 @@ function App() {
           <Route path="/finance" element={<FinancePage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/documents/:id" element={<DocumentReaderPage />} />
+          <Route path="/scout" element={<ScoutOverviewPage />} />
+          <Route path="/scout/connections" element={<ScoutConnectionsPage />} />
+          <Route path="/scout/research" element={<ScoutResearchPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

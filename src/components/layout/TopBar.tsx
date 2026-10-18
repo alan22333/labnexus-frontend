@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Link, NavLink, useNavigate } from "react-router-dom"
 import {
-  BookOpen, ChevronRight, ClipboardList, FileText, FlaskConical, FolderKanban,
+  BookOpen, ChevronRight, ClipboardList, Compass, FileText, FlaskConical, FolderKanban,
   LayoutGrid, Link2, Loader2, LogOut, Menu, Moon, Search, Settings, Sun,
   UserRound, Wallet,
 } from "lucide-react"
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 
 const NAV = [
   { to: "/", label: "信息流", icon: LayoutGrid, end: true },
+  { to: "/scout", label: "调研助手", icon: Compass, end: false },
   { to: "/resources", label: "资源库", icon: FolderKanban, end: false },
   { to: "/projects", label: "项目管理", icon: ClipboardList, end: false },
   { to: "/finance", label: "经费管理", icon: Wallet, end: false, finOnly: true },
