@@ -186,6 +186,16 @@ describe("ScoutResearchPage", () => {
     expect(apiMocks.listProjects).toHaveBeenCalledOnce()
   })
 
+  it("shows a history error instead of an empty history when session loading fails", async () => {
+    primeHappyPath()
+    apiMocks.listSessions.mockRejectedValue(new Error("history unavailable"))
+
+    renderPage()
+
+    expect(await screen.findByTestId("scout-sessions-error")).toBeTruthy()
+    expect(screen.queryByText("还没有历史会话。")).toBeNull()
+  })
+
   it("answers an English question and renders the brief findings", async () => {
     primeHappyPath()
     apiMocks.sessionBrief.mockResolvedValue(populatedBrief)

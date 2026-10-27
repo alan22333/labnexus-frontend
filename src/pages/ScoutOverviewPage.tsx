@@ -137,7 +137,7 @@ export function ScoutOverviewPage() {
               <span className="rounded-full bg-white/10 px-2.5 py-1">身份源：LabNexus</span>
             </div>
             <p className="mt-4 text-xs leading-5 text-slate-400">
-              当前先复用 LabNexus 页面身份；调研助手服务的正式身份桥接将单独接入。
+              调研助手通过 LabNexus Bearer JWT 识别当前账号，并为每人建立独立私有 workspace。
             </p>
           </div>
         </div>

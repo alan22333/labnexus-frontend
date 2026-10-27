@@ -162,6 +162,8 @@ export function ScoutResearchPage() {
   // ---- 会话 / 简报 ----
   const [session, setSession] = useState<ScoutSession | null>(null)
   const [sessions, setSessions] = useState<ScoutSessionSummary[]>([])
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [sessionsError, setSessionsError] = useState("")
   const [turns, setTurns] = useState<ScoutTurn[]>([])
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
   const [briefByTurn, setBriefByTurn] = useState<Record<string, ScoutBrief>>({})
@@ -315,6 +317,9 @@ export function ScoutResearchPage() {
     setScopeLoading(true)
     setScopeError("")
     setAskError("")
+    setSessions([])
+    setSessionsError("")
+    setSessionsLoading(true)
     const project = projects.find((item) => item.id === activeProjectId)
     if (project?.default_mode) setMode(project.default_mode)
 
@@ -338,8 +343,11 @@ export function ScoutResearchPage() {
       .then((items) => {
         if (!cancelled) setSessions(items)
       })
-      .catch(() => {
-        if (!cancelled) setSessions([])
+      .catch((error: unknown) => {
+        if (!cancelled) setSessionsError(errorText(error))
+      })
+      .finally(() => {
+        if (!cancelled) setSessionsLoading(false)
       })
 
     return () => {
@@ -393,8 +401,9 @@ export function ScoutResearchPage() {
   const refreshSessions = useCallback(async (projectId: string) => {
     try {
       setSessions(await scoutApi.listSessions(projectId))
-    } catch {
-      /* 历史会话刷新失败不影响主流程 */
+      setSessionsError("")
+    } catch (error) {
+      setSessionsError(errorText(error))
     }
   }, [])
 
@@ -965,7 +974,23 @@ export function ScoutResearchPage() {
                 开始新会话
               </Button>
 
-              {sessions.length === 0 ? (
+              {sessionsLoading ? (
+                <p role="status" className="rounded-lg border p-3 text-xs text-muted-foreground">
+                  正在加载历史会话…
+                </p>
+              ) : null}
+
+              {sessionsError ? (
+                <p
+                  role="alert"
+                  data-testid="scout-sessions-error"
+                  className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive"
+                >
+                  历史会话加载失败：{sessionsError}
+                </p>
+              ) : null}
+
+              {!sessionsLoading && !sessionsError && sessions.length === 0 ? (
                 <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                   还没有历史会话。
                 </p>

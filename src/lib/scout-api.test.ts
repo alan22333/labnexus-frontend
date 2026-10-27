@@ -112,6 +112,72 @@ describe("scout api bearer auth", () => {
     vi.unstubAllGlobals()
     localStorage.clear()
   })
+
+  it("refreshes once before replaying an event stream request", async () => {
+    localStorage.setItem("ln_token", "stale-token")
+    const fetchMock = vi.fn(async (url: string, init: RequestInit) => {
+      if (url === "/api/auth/refresh") {
+        return new Response(JSON.stringify({ access_token: "fresh-token" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      const auth = new Headers(init.headers).get("Authorization")
+      if (auth === "Bearer stale-token") {
+        return new Response(JSON.stringify({ error: { code: "unauthorized", message: "expired" } }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      return new Response(
+        "id: 1\nevent: phase_changed\ndata: {\"phase\":\"planning\"}\n\n",
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      )
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const events = await scoutApi.sessionEvents("session-1")
+
+    expect(events).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const replayHeaders = new Headers(fetchMock.mock.calls[2][1].headers)
+    expect(replayHeaders.get("Authorization")).toBe("Bearer fresh-token")
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
+
+  it("refreshes once before replaying a brief export request", async () => {
+    localStorage.setItem("ln_token", "stale-token")
+    const fetchMock = vi.fn(async (url: string, init: RequestInit) => {
+      if (url === "/api/auth/refresh") {
+        return new Response(JSON.stringify({ access_token: "fresh-token" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      const auth = new Headers(init.headers).get("Authorization")
+      if (auth === "Bearer stale-token") {
+        return new Response(JSON.stringify({ error: { code: "unauthorized", message: "expired" } }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      return new Response("brief-json", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const blob = await scoutApi.exportBrief("brief-1", "json")
+
+    expect(await blob.text()).toBe("brief-json")
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const replayHeaders = new Headers(fetchMock.mock.calls[2][1].headers)
+    expect(replayHeaders.get("Authorization")).toBe("Bearer fresh-token")
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
 })
 
 describe("scout event stream parsing", () => {

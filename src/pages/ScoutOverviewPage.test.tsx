@@ -77,6 +77,7 @@ describe("ScoutOverviewPage", () => {
     expect(await screen.findByText("还没有可用的 Zotero 文库")).toBeTruthy()
     expect(screen.getByRole("button", { name: /去连接 Zotero/ })).toBeTruthy()
     expect(apiMocks.coverage).not.toHaveBeenCalled()
+    expect(screen.queryByText(/正式身份桥接将单独接入/)).toBeNull()
   })
 
   it("summarizes the active connection coverage", async () => {

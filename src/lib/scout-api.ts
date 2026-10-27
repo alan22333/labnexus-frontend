@@ -155,7 +155,11 @@ function problemFromResponse(res: Response, payload: unknown): ScoutApiProblem {
   })
 }
 
-async function request<T>(path: string, init: RequestInit = {}, retried = false): Promise<T> {
+async function requestResponse(
+  path: string,
+  init: RequestInit = {},
+  retried = false,
+): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set("Accept", "application/json")
   if (init.body && !(init.body instanceof FormData)) {
@@ -189,7 +193,7 @@ async function request<T>(path: string, init: RequestInit = {}, retried = false)
   if (res.status === 401 && token && !retried) {
     try {
       await refreshToken()
-      return request<T>(path, init, true)
+      return requestResponse(path, init, true)
     } catch {
       throw new ScoutApiProblem({
         status: 401,
@@ -200,6 +204,25 @@ async function request<T>(path: string, init: RequestInit = {}, retried = false)
       })
     }
   }
+
+  return res
+}
+
+async function problemFromRawResponse(res: Response): Promise<ScoutApiProblem> {
+  const text = await res.text()
+  let payload: unknown = null
+  if (text.trim()) {
+    try {
+      payload = JSON.parse(text) as unknown
+    } catch {
+      payload = null
+    }
+  }
+  return problemFromResponse(res, payload)
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await requestResponse(path, init)
 
   const text = await res.text()
   let payload: unknown = null
@@ -347,12 +370,8 @@ export const scoutApi = {
   cancelSession: (sessionId: string) =>
     request<ScoutSession>(`/sessions/${sessionId}/cancel`, { method: "POST" }),
   sessionEvents: async (sessionId: string): Promise<ScoutQueryEvent[]> => {
-    const token = getToken()
-    const res = await fetch(`${scoutApiBaseUrl()}/sessions/${sessionId}/events`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      credentials: "same-origin",
-    })
-    if (!res.ok) throw problemFromResponse(res, null)
+    const res = await requestResponse(`/sessions/${sessionId}/events`)
+    if (!res.ok) throw await problemFromRawResponse(res)
     return parseScoutEventStream(await res.text())
   },
 
@@ -371,12 +390,8 @@ export const scoutApi = {
   submitFeedback: (briefId: string, input: { rating: number; comment?: string }) =>
     request<void>(`/briefs/${briefId}/feedback`, { method: "POST", body: JSON.stringify(input) }),
   exportBrief: async (briefId: string, format: ScoutExportFormat): Promise<Blob> => {
-    const token = getToken()
-    const res = await fetch(`${scoutApiBaseUrl()}/briefs/${briefId}/export?format=${format}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      credentials: "same-origin",
-    })
-    if (!res.ok) throw problemFromResponse(res, null)
+    const res = await requestResponse(`/briefs/${briefId}/export?format=${format}`)
+    if (!res.ok) throw await problemFromRawResponse(res)
     return res.blob()
   },
 }
